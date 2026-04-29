@@ -303,6 +303,7 @@ function FormularRacaoWizard() {
           )}
 
           {step === 6 && <StepResult state={state} />}
+          </div>
         </Card>
 
         <div className="flex justify-between mt-6">
