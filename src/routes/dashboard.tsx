@@ -1,3 +1,4 @@
+import { LogoLoader } from "@/components/logo-loader";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ function DashboardPage() {
   }, [user, loading, navigate]);
 
   if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LogoLoader />;
   }
 
   const handleLogout = async () => {

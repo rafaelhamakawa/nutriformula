@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { LogoLoader } from "@/components/logo-loader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -150,7 +151,7 @@ function FormularRacaoWizard() {
   }, [user, loading, navigate]);
 
   if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LogoLoader label="Preparando o formulador..." />;
   }
 
   const canNext = (() => {
@@ -211,6 +212,7 @@ function FormularRacaoWizard() {
         </div>
 
         <Card className="p-6 md:p-8 bg-card/60 backdrop-blur border-border/50">
+          <div key={step} className="animate-step-in">
           {step === 0 && (
             <StepSpecie
               value={state.specie}
@@ -301,6 +303,7 @@ function FormularRacaoWizard() {
           )}
 
           {step === 6 && <StepResult state={state} />}
+          </div>
         </Card>
 
         <div className="flex justify-between mt-6">

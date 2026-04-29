@@ -1,3 +1,4 @@
+import { LogoLoader } from "@/components/logo-loader";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -70,7 +71,7 @@ function NutrientesPage() {
   );
 
   if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LogoLoader />;
   }
 
   const openCreate = () => {
