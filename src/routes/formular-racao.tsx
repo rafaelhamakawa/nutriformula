@@ -16,6 +16,29 @@ import {
   Sparkles,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
+import frangoImg from "@/assets/species/frango.png";
+import poedeiraImg from "@/assets/species/poedeira.png";
+import codornaImg from "@/assets/species/codorna.png";
+import calopsitaImg from "@/assets/species/calopsita.png";
+import suinosImg from "@/assets/species/suinos.png";
+import bovinoImg from "@/assets/species/bovino.png";
+import equinosImg from "@/assets/species/equinos.png";
+import caesImg from "@/assets/species/caes.png";
+import gatosImg from "@/assets/species/gatos.png";
+import jabutiImg from "@/assets/species/jabuti.png";
+
+const SPECIE_IMAGES: Record<Specie, string> = {
+  frango: frangoImg,
+  poedeira: poedeiraImg,
+  codorna: codornaImg,
+  calopsita: calopsitaImg,
+  suinos: suinosImg,
+  "bovino-corte": bovinoImg,
+  equinos: equinosImg,
+  caes: caesImg,
+  gatos: gatosImg,
+  jabuti: jabutiImg,
+};
 
 export const Route = createFileRoute("/formular-racao")({
   head: () => ({ meta: [{ title: "Formular Ração — NutriForm" }] }),
