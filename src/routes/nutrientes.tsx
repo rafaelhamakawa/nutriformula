@@ -71,7 +71,7 @@ function NutrientesPage() {
   );
 
   if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LogoLoader />;
   }
 
   const openCreate = () => {

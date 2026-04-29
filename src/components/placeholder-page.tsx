@@ -22,7 +22,7 @@ export function PlaceholderPage({ icon: Icon, title, description }: PlaceholderP
   }, [user, loading, navigate]);
 
   if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LogoLoader />;
   }
 
   return (
