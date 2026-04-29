@@ -1,3 +1,4 @@
+import { LogoLoader } from "@/components/logo-loader";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
