@@ -342,7 +342,7 @@ function StepSpecie({ value, onChange }: { value: Specie | null; onChange: (v: S
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
               {group}
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
               {items.map((s) => {
                 const active = value === s.value;
                 return (
@@ -350,13 +350,24 @@ function StepSpecie({ value, onChange }: { value: Specie | null; onChange: (v: S
                     key={s.value}
                     type="button"
                     onClick={() => onChange(s.value)}
-                    className={`text-left rounded-lg border px-4 py-3 transition-all ${
+                    className={`group flex flex-col items-center gap-2 rounded-xl border p-3 transition-all ${
                       active
-                        ? "border-primary bg-primary/15"
-                        : "border-border bg-card/40 hover:border-primary/50"
+                        ? "border-primary bg-primary/15 shadow-[0_0_0_2px_var(--primary)]"
+                        : "border-border bg-card/40 hover:border-primary/50 hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="font-medium">{s.label}</div>
+                    <div
+                      className={`h-20 w-20 rounded-full overflow-hidden ring-2 transition-all ${
+                        active ? "ring-primary" : "ring-border/50 group-hover:ring-primary/40"
+                      }`}
+                    >
+                      <img
+                        src={SPECIE_IMAGES[s.value]}
+                        alt={s.label}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="text-sm font-medium text-center">{s.label}</div>
                   </button>
                 );
               })}
