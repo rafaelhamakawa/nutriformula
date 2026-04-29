@@ -212,6 +212,7 @@ function FormularRacaoWizard() {
         </div>
 
         <Card className="p-6 md:p-8 bg-card/60 backdrop-blur border-border/50">
+          <div key={step} className="animate-step-in">
           {step === 0 && (
             <StepSpecie
               value={state.specie}
