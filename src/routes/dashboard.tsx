@@ -68,16 +68,13 @@ function DashboardPage() {
         <p className="text-muted-foreground mb-10">O que você quer fazer hoje?</p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map(({ icon: Icon, title, desc, to }) => (
+          {cards.map(({ image, title, desc, to }) => (
             <Link key={to} to={to} className="group">
               <Card className="h-full p-8 bg-card/60 backdrop-blur border-border/50 hover:border-primary/60 hover:bg-card/80 transition-all cursor-pointer group-hover:-translate-y-1 group-hover:shadow-2xl"
                 style={{ minHeight: "200px" }}
               >
-                <div
-                  className="h-16 w-16 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
-                  style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
-                >
-                  <Icon className="h-8 w-8 text-primary-foreground" />
+                <div className="h-24 w-24 rounded-2xl overflow-hidden mb-5 transition-transform group-hover:scale-110 flex items-center justify-center">
+                  <img src={image} alt={title} className="h-full w-full object-contain" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{title}</h3>
                 <p className="text-sm text-muted-foreground">{desc}</p>
