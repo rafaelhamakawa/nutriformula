@@ -4,21 +4,27 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { LogOut, Calculator, Leaf, HeartPulse, Beaker, Atom, Target, type LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
+import iconFormular from "@/assets/dashboard/formular.png";
+import iconNatural from "@/assets/dashboard/natural.png";
+import iconClinica from "@/assets/dashboard/clinica.png";
+import iconIngredientes from "@/assets/dashboard/ingredientes.png";
+import iconNutrientes from "@/assets/dashboard/nutrientes.png";
+import iconExigencias from "@/assets/dashboard/exigencias.png";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NutriForm" }] }),
   component: DashboardPage,
 });
 
-const cards: { icon: LucideIcon; title: string; desc: string; to: string }[] = [
-  { icon: Calculator, title: "Formular Ração", desc: "Crie formulações balanceadas.", to: "/formular-racao" },
-  { icon: Leaf, title: "Alimentação Natural", desc: "Planos de alimentação natural.", to: "/alimentacao-natural" },
-  { icon: HeartPulse, title: "Nutrição Clínica", desc: "Planos clínicos personalizados.", to: "/nutricao-clinica" },
-  { icon: Beaker, title: "Ingredientes", desc: "Catálogo de ingredientes.", to: "/ingredientes" },
-  { icon: Atom, title: "Nutrientes", desc: "Tabela de nutrientes.", to: "/nutrientes" },
-  { icon: Target, title: "Exigências Nutricionais", desc: "Requisitos por espécie e fase.", to: "/exigencias-nutricionais" },
+const cards: { image: string; title: string; desc: string; to: string }[] = [
+  { image: iconFormular, title: "Formular Ração", desc: "Crie formulações balanceadas.", to: "/formular-racao" },
+  { image: iconNatural, title: "Alimentação Natural", desc: "Planos de alimentação natural.", to: "/alimentacao-natural" },
+  { image: iconClinica, title: "Nutrição Clínica", desc: "Planos clínicos personalizados.", to: "/nutricao-clinica" },
+  { image: iconIngredientes, title: "Ingredientes", desc: "Catálogo de ingredientes.", to: "/ingredientes" },
+  { image: iconNutrientes, title: "Nutrientes", desc: "Tabela de nutrientes.", to: "/nutrientes" },
+  { image: iconExigencias, title: "Exigências Nutricionais", desc: "Requisitos por espécie e fase.", to: "/exigencias-nutricionais" },
 ];
 
 function DashboardPage() {
@@ -62,16 +68,13 @@ function DashboardPage() {
         <p className="text-muted-foreground mb-10">O que você quer fazer hoje?</p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map(({ icon: Icon, title, desc, to }) => (
+          {cards.map(({ image, title, desc, to }) => (
             <Link key={to} to={to} className="group">
               <Card className="h-full p-8 bg-card/60 backdrop-blur border-border/50 hover:border-primary/60 hover:bg-card/80 transition-all cursor-pointer group-hover:-translate-y-1 group-hover:shadow-2xl"
                 style={{ minHeight: "200px" }}
               >
-                <div
-                  className="h-16 w-16 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
-                  style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
-                >
-                  <Icon className="h-8 w-8 text-primary-foreground" />
+                <div className="h-24 w-24 rounded-2xl overflow-hidden mb-5 transition-transform group-hover:scale-110 flex items-center justify-center">
+                  <img src={image} alt={title} className="h-full w-full object-contain" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{title}</h3>
                 <p className="text-sm text-muted-foreground">{desc}</p>
