@@ -10,8 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as NutrientesRouteImport } from './routes/nutrientes'
+import { Route as NutricaoClinicaRouteImport } from './routes/nutricao-clinica'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as IngredientesRouteImport } from './routes/ingredientes'
+import { Route as FormularRacaoRouteImport } from './routes/formular-racao'
+import { Route as ExigenciasNutricionaisRouteImport } from './routes/exigencias-nutricionais'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AlimentacaoNaturalRouteImport } from './routes/alimentacao-natural'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SignupRoute = SignupRouteImport.update({
@@ -19,14 +25,44 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NutrientesRoute = NutrientesRouteImport.update({
+  id: '/nutrientes',
+  path: '/nutrientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NutricaoClinicaRoute = NutricaoClinicaRouteImport.update({
+  id: '/nutricao-clinica',
+  path: '/nutricao-clinica',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IngredientesRoute = IngredientesRouteImport.update({
+  id: '/ingredientes',
+  path: '/ingredientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FormularRacaoRoute = FormularRacaoRouteImport.update({
+  id: '/formular-racao',
+  path: '/formular-racao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExigenciasNutricionaisRoute = ExigenciasNutricionaisRouteImport.update({
+  id: '/exigencias-nutricionais',
+  path: '/exigencias-nutricionais',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlimentacaoNaturalRoute = AlimentacaoNaturalRouteImport.update({
+  id: '/alimentacao-natural',
+  path: '/alimentacao-natural',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,35 +73,90 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alimentacao-natural': typeof AlimentacaoNaturalRoute
   '/dashboard': typeof DashboardRoute
+  '/exigencias-nutricionais': typeof ExigenciasNutricionaisRoute
+  '/formular-racao': typeof FormularRacaoRoute
+  '/ingredientes': typeof IngredientesRoute
   '/login': typeof LoginRoute
+  '/nutricao-clinica': typeof NutricaoClinicaRoute
+  '/nutrientes': typeof NutrientesRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alimentacao-natural': typeof AlimentacaoNaturalRoute
   '/dashboard': typeof DashboardRoute
+  '/exigencias-nutricionais': typeof ExigenciasNutricionaisRoute
+  '/formular-racao': typeof FormularRacaoRoute
+  '/ingredientes': typeof IngredientesRoute
   '/login': typeof LoginRoute
+  '/nutricao-clinica': typeof NutricaoClinicaRoute
+  '/nutrientes': typeof NutrientesRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alimentacao-natural': typeof AlimentacaoNaturalRoute
   '/dashboard': typeof DashboardRoute
+  '/exigencias-nutricionais': typeof ExigenciasNutricionaisRoute
+  '/formular-racao': typeof FormularRacaoRoute
+  '/ingredientes': typeof IngredientesRoute
   '/login': typeof LoginRoute
+  '/nutricao-clinica': typeof NutricaoClinicaRoute
+  '/nutrientes': typeof NutrientesRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login' | '/signup'
+  fullPaths:
+    | '/'
+    | '/alimentacao-natural'
+    | '/dashboard'
+    | '/exigencias-nutricionais'
+    | '/formular-racao'
+    | '/ingredientes'
+    | '/login'
+    | '/nutricao-clinica'
+    | '/nutrientes'
+    | '/signup'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/signup'
-  id: '__root__' | '/' | '/dashboard' | '/login' | '/signup'
+  to:
+    | '/'
+    | '/alimentacao-natural'
+    | '/dashboard'
+    | '/exigencias-nutricionais'
+    | '/formular-racao'
+    | '/ingredientes'
+    | '/login'
+    | '/nutricao-clinica'
+    | '/nutrientes'
+    | '/signup'
+  id:
+    | '__root__'
+    | '/'
+    | '/alimentacao-natural'
+    | '/dashboard'
+    | '/exigencias-nutricionais'
+    | '/formular-racao'
+    | '/ingredientes'
+    | '/login'
+    | '/nutricao-clinica'
+    | '/nutrientes'
+    | '/signup'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlimentacaoNaturalRoute: typeof AlimentacaoNaturalRoute
   DashboardRoute: typeof DashboardRoute
+  ExigenciasNutricionaisRoute: typeof ExigenciasNutricionaisRoute
+  FormularRacaoRoute: typeof FormularRacaoRoute
+  IngredientesRoute: typeof IngredientesRoute
   LoginRoute: typeof LoginRoute
+  NutricaoClinicaRoute: typeof NutricaoClinicaRoute
+  NutrientesRoute: typeof NutrientesRoute
   SignupRoute: typeof SignupRoute
 }
 
@@ -78,6 +169,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nutrientes': {
+      id: '/nutrientes'
+      path: '/nutrientes'
+      fullPath: '/nutrientes'
+      preLoaderRoute: typeof NutrientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nutricao-clinica': {
+      id: '/nutricao-clinica'
+      path: '/nutricao-clinica'
+      fullPath: '/nutricao-clinica'
+      preLoaderRoute: typeof NutricaoClinicaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -85,11 +190,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ingredientes': {
+      id: '/ingredientes'
+      path: '/ingredientes'
+      fullPath: '/ingredientes'
+      preLoaderRoute: typeof IngredientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/formular-racao': {
+      id: '/formular-racao'
+      path: '/formular-racao'
+      fullPath: '/formular-racao'
+      preLoaderRoute: typeof FormularRacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exigencias-nutricionais': {
+      id: '/exigencias-nutricionais'
+      path: '/exigencias-nutricionais'
+      fullPath: '/exigencias-nutricionais'
+      preLoaderRoute: typeof ExigenciasNutricionaisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alimentacao-natural': {
+      id: '/alimentacao-natural'
+      path: '/alimentacao-natural'
+      fullPath: '/alimentacao-natural'
+      preLoaderRoute: typeof AlimentacaoNaturalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -104,8 +237,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlimentacaoNaturalRoute: AlimentacaoNaturalRoute,
   DashboardRoute: DashboardRoute,
+  ExigenciasNutricionaisRoute: ExigenciasNutricionaisRoute,
+  FormularRacaoRoute: FormularRacaoRoute,
+  IngredientesRoute: IngredientesRoute,
   LoginRoute: LoginRoute,
+  NutricaoClinicaRoute: NutricaoClinicaRoute,
+  NutrientesRoute: NutrientesRoute,
   SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
