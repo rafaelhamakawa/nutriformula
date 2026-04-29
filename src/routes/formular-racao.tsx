@@ -214,7 +214,7 @@ function FormularRacaoWizard() {
           {step === 0 && (
             <StepSpecie
               value={state.specie}
-              onChange={(v) =>
+              onChange={(v) => {
                 setState((s) => ({
                   ...s,
                   specie: v,
@@ -222,8 +222,9 @@ function FormularRacaoWizard() {
                     s.feedType === "natural" && !NATURAL_ALLOWED.includes(v)
                       ? null
                       : s.feedType,
-                }))
-              }
+                }));
+                next();
+              }}
             />
           )}
 
@@ -231,7 +232,10 @@ function FormularRacaoWizard() {
             <StepFeedType
               specie={state.specie}
               value={state.feedType}
-              onChange={(v) => setState((s) => ({ ...s, feedType: v }))}
+              onChange={(v) => {
+                setState((s) => ({ ...s, feedType: v }));
+                next();
+              }}
             />
           )}
 
