@@ -293,7 +293,10 @@ function FormularRacaoWizard() {
           {step === 5 && (
             <StepCalcType
               value={state.calcType}
-              onChange={(v) => setState((s) => ({ ...s, calcType: v }))}
+              onChange={(v) => {
+                setState((s) => ({ ...s, calcType: v }));
+                next();
+              }}
             />
           )}
 
