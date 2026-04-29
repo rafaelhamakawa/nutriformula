@@ -73,7 +73,7 @@ function DashboardPage() {
               <Card className="h-full p-8 bg-card/60 backdrop-blur border-border/50 hover:border-primary/60 hover:bg-card/80 transition-all cursor-pointer group-hover:-translate-y-1 group-hover:shadow-2xl"
                 style={{ minHeight: "200px" }}
               >
-                <div className="h-24 w-24 rounded-2xl overflow-hidden mb-5 transition-transform group-hover:scale-110 flex items-center justify-center">
+                <div className="h-40 w-40 md:h-48 md:w-48 rounded-2xl overflow-hidden mb-5 transition-transform group-hover:scale-110 flex items-center justify-center mx-auto">
                   <img src={image} alt={title} className="h-full w-full object-contain" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{title}</h3>
