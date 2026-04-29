@@ -4,21 +4,27 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { LogOut, Calculator, Leaf, HeartPulse, Beaker, Atom, Target, type LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import logo from "@/assets/logo.png";
+import iconFormular from "@/assets/dashboard/formular.png";
+import iconNatural from "@/assets/dashboard/natural.png";
+import iconClinica from "@/assets/dashboard/clinica.png";
+import iconIngredientes from "@/assets/dashboard/ingredientes.png";
+import iconNutrientes from "@/assets/dashboard/nutrientes.png";
+import iconExigencias from "@/assets/dashboard/exigencias.png";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NutriForm" }] }),
   component: DashboardPage,
 });
 
-const cards: { icon: LucideIcon; title: string; desc: string; to: string }[] = [
-  { icon: Calculator, title: "Formular Ração", desc: "Crie formulações balanceadas.", to: "/formular-racao" },
-  { icon: Leaf, title: "Alimentação Natural", desc: "Planos de alimentação natural.", to: "/alimentacao-natural" },
-  { icon: HeartPulse, title: "Nutrição Clínica", desc: "Planos clínicos personalizados.", to: "/nutricao-clinica" },
-  { icon: Beaker, title: "Ingredientes", desc: "Catálogo de ingredientes.", to: "/ingredientes" },
-  { icon: Atom, title: "Nutrientes", desc: "Tabela de nutrientes.", to: "/nutrientes" },
-  { icon: Target, title: "Exigências Nutricionais", desc: "Requisitos por espécie e fase.", to: "/exigencias-nutricionais" },
+const cards: { image: string; title: string; desc: string; to: string }[] = [
+  { image: iconFormular, title: "Formular Ração", desc: "Crie formulações balanceadas.", to: "/formular-racao" },
+  { image: iconNatural, title: "Alimentação Natural", desc: "Planos de alimentação natural.", to: "/alimentacao-natural" },
+  { image: iconClinica, title: "Nutrição Clínica", desc: "Planos clínicos personalizados.", to: "/nutricao-clinica" },
+  { image: iconIngredientes, title: "Ingredientes", desc: "Catálogo de ingredientes.", to: "/ingredientes" },
+  { image: iconNutrientes, title: "Nutrientes", desc: "Tabela de nutrientes.", to: "/nutrientes" },
+  { image: iconExigencias, title: "Exigências Nutricionais", desc: "Requisitos por espécie e fase.", to: "/exigencias-nutricionais" },
 ];
 
 function DashboardPage() {
