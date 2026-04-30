@@ -916,6 +916,26 @@ const WIZARD_TO_NUTRIENT_KEY: Record<string, string> = {
   fosforo: "fosforo_dig",
 };
 
+const REQUIREMENT_NUTRIENT_ALIASES: Record<string, string[]> = {
+  proteina: ["proteina_bruta", "proteina", "pb"],
+  energia: ["energia_metabolizavel", "energia_digestivel", "energia", "em", "ed"],
+  lisina: ["lisina_dig", "lisina", "lisina_digestivel"],
+  metionina: ["met_cist_dig", "metionina", "metionina_dig", "met_cist", "metionina_cistina"],
+  calcio: ["calcio", "ca"],
+  fosforo: ["fosforo_dig", "fosforo", "fosforo_digestivel", "p"],
+};
+
+function getRequirementNutrientValue(nutrientes: Record<string, unknown>, wizardId: string): number | undefined {
+  const wanted = [WIZARD_TO_NUTRIENT_KEY[wizardId] ?? wizardId, ...(REQUIREMENT_NUTRIENT_ALIASES[wizardId] ?? [])].map(norm);
+  for (const [key, value] of Object.entries(nutrientes ?? {})) {
+    if (wanted.includes(norm(key))) {
+      const n = Number(value);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    }
+  }
+  return undefined;
+}
+
 function StepResult({ state }: { state: WizardState }) {
   const [items] = useSupabaseCollection<
     {
