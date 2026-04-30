@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Slider } from "@/components/ui/slider";
 import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
 import {
@@ -303,7 +304,8 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 6 && <StepResult state={state} />}
+          {step === 6 && state.calcType === "manual" && <StepResultManual state={state} />}
+          {step === 6 && state.calcType !== "manual" && <StepResult state={state} />}
           </div>
         </Card>
 
@@ -881,6 +883,265 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium capitalize">{value}</span>
+    </div>
+  );
+}
+
+// ---------- Ajuste manual ----------
+
+function StepResultManual({ state }: { state: WizardState }) {
+  const [items] = useSupabaseCollection<
+    {
+      id: string;
+      nome: string;
+      preco: number;
+      nutrientes: Record<string, number>;
+    },
+    {
+      id: string;
+      user_id: string;
+      nome: string;
+      preco: number | null;
+      nutrientes: Record<string, number> | null;
+    }
+  >(
+    "ingredients",
+    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      preco: Number(row.preco) || 0,
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
+
+  // Resolve dados de cada ingrediente selecionado.
+  const ingredientesData = useMemo(() => {
+    const selMap = new Map(items.map((i) => [i.nome.toLowerCase(), i]));
+    return state.ingredients.map((nome) => {
+      const found = selMap.get(nome.toLowerCase());
+      return {
+        nome,
+        preco: found?.preco ?? 0,
+        nutrientes: found?.nutrientes ?? {},
+      };
+    });
+  }, [items, state.ingredients]);
+
+  // Percentual por ingrediente (inicializa distribuído igualmente).
+  const [percent, setPercent] = useState<Record<string, number>>({});
+  useEffect(() => {
+    setPercent((prev) => {
+      const keys = state.ingredients;
+      if (keys.length === 0) return {};
+      const allPresent = keys.every((k) => k in prev);
+      if (allPresent && Object.keys(prev).length === keys.length) return prev;
+      const eq = 100 / keys.length;
+      const next: Record<string, number> = {};
+      keys.forEach((k, i) => {
+        next[k] = i === keys.length - 1 ? 100 - eq * (keys.length - 1) : eq;
+      });
+      return next;
+    });
+  }, [state.ingredients]);
+
+  // Atualiza o ingrediente alterado e redistribui o restante proporcionalmente,
+  // respeitando os limites min/max definidos na etapa de restrições.
+  const updatePercent = (nome: string, novo: number) => {
+    setPercent((prev) => {
+      const keys = state.ingredients;
+      if (keys.length === 0) return prev;
+      const limites = (k: string) => {
+        const r = state.ingredientLimits[k] ?? { min: "", max: "" };
+        const min = r.min !== "" ? Math.max(0, Number(r.min)) : 0;
+        const max = r.max !== "" ? Math.min(100, Number(r.max)) : 100;
+        return { min: Number.isFinite(min) ? min : 0, max: Number.isFinite(max) ? max : 100 };
+      };
+      const lim = limites(nome);
+      const v = Math.min(lim.max, Math.max(lim.min, novo));
+      const others = keys.filter((k) => k !== nome);
+      const restante = 100 - v;
+      const prevOthersSum = others.reduce((a, k) => a + (prev[k] ?? 0), 0);
+      const next: Record<string, number> = { ...prev, [nome]: v };
+      if (others.length === 0) {
+        next[nome] = 100;
+        return next;
+      }
+      if (prevOthersSum <= 0) {
+        const eq = restante / others.length;
+        others.forEach((k) => (next[k] = Math.min(limites(k).max, Math.max(limites(k).min, eq))));
+      } else {
+        others.forEach((k) => {
+          const share = ((prev[k] ?? 0) / prevOthersSum) * restante;
+          const l = limites(k);
+          next[k] = Math.min(l.max, Math.max(l.min, share));
+        });
+      }
+      // Ajuste residual para forçar soma = 100.
+      const total = keys.reduce((a, k) => a + next[k], 0);
+      const diff = 100 - total;
+      if (Math.abs(diff) > 0.001) {
+        const last = others[others.length - 1] ?? nome;
+        next[last] = Math.max(0, next[last] + diff);
+      }
+      return next;
+    });
+  };
+
+  const total = state.ingredients.reduce((a, k) => a + (percent[k] ?? 0), 0);
+
+  const custo = useMemo(() => {
+    return ingredientesData.reduce(
+      (acc, ing) => acc + ((percent[ing.nome] ?? 0) / 100) * ing.preco,
+      0,
+    );
+  }, [ingredientesData, percent]);
+
+  const nutrientesCalc = useMemo(() => {
+    return state.nutrients.map((wid) => {
+      const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
+      const label = NUTRIENTS.find((n) => n.id === wid)?.label ?? key;
+      const valor = ingredientesData.reduce((acc, ing) => {
+        const pct = percent[ing.nome] ?? 0;
+        const v = Number(ing.nutrientes?.[key]) || 0;
+        return acc + (v * pct) / 100;
+      }, 0);
+      const r = state.nutrientLimits[wid] ?? { min: "", max: "" };
+      const min = r.min !== "" ? Number(r.min) : undefined;
+      const max = r.max !== "" ? Number(r.max) : undefined;
+      let status: "ok" | "warn" | "bad" = "ok";
+      if (typeof min === "number" && Number.isFinite(min)) {
+        if (valor < min) status = "bad";
+        else if (valor < min * 1.05) status = "warn";
+      }
+      if (typeof max === "number" && Number.isFinite(max)) {
+        if (valor > max) status = "bad";
+        else if (valor > max * 0.95 && status === "ok") status = "warn";
+      }
+      return { key, label, valor, min, max, status };
+    });
+  }, [ingredientesData, percent, state.nutrients, state.nutrientLimits]);
+
+  const statusColor = (s: "ok" | "warn" | "bad") =>
+    s === "ok"
+      ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/40"
+      : s === "warn"
+      ? "bg-yellow-500/15 text-yellow-700 border-yellow-500/40"
+      : "bg-destructive/15 text-destructive border-destructive/40";
+
+  return (
+    <div className="py-2">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold mb-2">Ajuste manual</h2>
+        <p className="text-muted-foreground text-sm">
+          Ajuste a porcentagem de cada ingrediente. A soma é mantida em 100% automaticamente.
+        </p>
+      </div>
+
+      {state.ingredients.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center">
+          Nenhum ingrediente selecionado.
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="bg-card/40 border border-border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Ingredientes</h3>
+              <span
+                className={`text-xs px-2 py-1 rounded-md border ${
+                  Math.abs(total - 100) < 0.05
+                    ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/40"
+                    : "bg-yellow-500/15 text-yellow-700 border-yellow-500/40"
+                }`}
+              >
+                Total: {total.toFixed(2)}%
+              </span>
+            </div>
+            <div className="space-y-4">
+              {ingredientesData.map((ing) => {
+                const v = percent[ing.nome] ?? 0;
+                const lim = state.ingredientLimits[ing.nome] ?? { min: "", max: "" };
+                return (
+                  <div key={ing.nome} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm">
+                        <div className="font-medium">{ing.nome}</div>
+                        <div className="text-xs text-muted-foreground">
+                          R$ {ing.preco.toFixed(4)}/kg
+                          {(lim.min || lim.max) && (
+                            <>
+                              {" "}· limites {lim.min || 0}–{lim.max || 100}%
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        value={v.toFixed(2)}
+                        onChange={(e) => updatePercent(ing.nome, Number(e.target.value) || 0)}
+                        className="w-24 text-right"
+                      />
+                    </div>
+                    <Slider
+                      value={[v]}
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      onValueChange={(arr) => updatePercent(ing.nome, arr[0] ?? 0)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-border mt-4 pt-3 flex justify-between text-sm font-semibold">
+              <span>Custo final</span>
+              <span>R$ {custo.toFixed(4)} / kg</span>
+            </div>
+          </div>
+
+          <div className="bg-card/40 border border-border rounded-lg p-4">
+            <h3 className="font-semibold mb-3">Composição nutricional</h3>
+            {nutrientesCalc.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum nutriente selecionado.</p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                {nutrientesCalc.map((n) => (
+                  <div
+                    key={n.key}
+                    className={`flex items-center justify-between rounded-md border px-3 py-2 ${statusColor(n.status)}`}
+                  >
+                    <div>
+                      <div className="font-medium">{n.label}</div>
+                      <div className="text-xs opacity-80">
+                        {typeof n.min === "number" && <>min {n.min} </>}
+                        {typeof n.max === "number" && <>· max {n.max}</>}
+                        {typeof n.min !== "number" && typeof n.max !== "number" && (
+                          <>sem exigência definida</>
+                        )}
+                      </div>
+                    </div>
+                    <span className="font-semibold tabular-nums">{n.valor.toFixed(3)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Atendido
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-yellow-500" /> Próximo do limite
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-destructive" /> Fora da exigência
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
