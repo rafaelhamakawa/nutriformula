@@ -1,6 +1,6 @@
 import { LogoLoader } from "@/components/logo-loader";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,7 +44,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
 import { NUTRIENT_COLUMNS } from "@/routes/ingredientes";
 import iconExigencias from "@/assets/dashboard/exigencias.png";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/exigencias-nutricionais")({
   head: () => ({ meta: [{ title: "Exigências Nutricionais — NutriForm" }] }),
