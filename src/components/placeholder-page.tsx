@@ -8,7 +8,8 @@ import { ArrowLeft, type LucideIcon } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 interface PlaceholderPageProps {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  image?: string;
   title: string;
   description: string;
 }
