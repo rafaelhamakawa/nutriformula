@@ -8,6 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/use-auth";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
+import {
+  calcularFormulaAutomatica,
+  type IngredienteEntrada,
+  type ExigenciaNutriente,
+  type ResultadoFormulacao,
+} from "@/lib/formulacao";
 import { PageHeader } from "@/components/page-header";
 import {
   ArrowLeft,
