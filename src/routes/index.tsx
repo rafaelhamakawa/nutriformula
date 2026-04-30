@@ -2,9 +2,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Beaker, Calculator, HeartPulse, LineChart, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logo from "@/assets/logo.png";
+import featFormulacao from "@/assets/features/formulacao.jpg";
+import featClinica from "@/assets/features/clinica.jpg";
+import featIngredientes from "@/assets/features/ingredientes.jpg";
+import featAnalise from "@/assets/features/analise.jpg";
+import featSeguranca from "@/assets/features/seguranca.jpg";
+import featInterface from "@/assets/features/interface.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -17,12 +22,12 @@ export const Route = createFileRoute("/")({
 });
 
 const features = [
-  { icon: Calculator, title: "Formulação Precisa", desc: "Cálculo otimizado de rações balanceadas com base em requisitos nutricionais." },
-  { icon: HeartPulse, title: "Nutrição Clínica", desc: "Planos nutricionais clínicos personalizados para diferentes condições." },
-  { icon: Beaker, title: "Banco de Ingredientes", desc: "Catálogo completo de ingredientes com composição nutricional detalhada." },
-  { icon: LineChart, title: "Análise & Relatórios", desc: "Visualize resultados, custos e indicadores nutricionais em tempo real." },
-  { icon: ShieldCheck, title: "Dados Seguros", desc: "Suas formulações protegidas com autenticação e armazenamento seguro." },
-  { icon: Sparkles, title: "Interface Moderna", desc: "Experiência rápida, responsiva e intuitiva em qualquer dispositivo." },
+  { image: featFormulacao, title: "Formulação Precisa", desc: "Cálculo otimizado de rações balanceadas com base em requisitos nutricionais." },
+  { image: featClinica, title: "Nutrição Clínica", desc: "Planos nutricionais clínicos personalizados para diferentes condições." },
+  { image: featIngredientes, title: "Banco de Ingredientes", desc: "Catálogo completo de ingredientes com composição nutricional detalhada." },
+  { image: featAnalise, title: "Análise & Relatórios", desc: "Visualize resultados, custos e indicadores nutricionais em tempo real." },
+  { image: featSeguranca, title: "Dados Seguros", desc: "Suas formulações protegidas com autenticação e armazenamento seguro." },
+  { image: featInterface, title: "Interface Moderna", desc: "Experiência rápida, responsiva e intuitiva em qualquer dispositivo." },
 ];
 
 function HomePage() {
@@ -83,13 +88,22 @@ function HomePage() {
             Tudo o que você precisa para criar formulações eficientes e planos nutricionais profissionais.
           </p>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, desc }) => (
-              <Card key={title} className="p-6 bg-card/60 backdrop-blur border-border/50 hover:border-primary/50 transition-all">
-                <div className="h-12 w-12 rounded-lg flex items-center justify-center mb-4" style={{ background: "var(--gradient-primary)" }}>
-                  <Icon className="h-6 w-6 text-primary-foreground" />
+            {features.map(({ image, title, desc }) => (
+              <Card key={title} className="overflow-hidden bg-card/60 backdrop-blur border-border/50 hover:border-primary/50 transition-all group">
+                <div className="aspect-[4/3] overflow-hidden bg-muted">
+                  <img
+                    src={image}
+                    alt={title}
+                    width={1024}
+                    height={768}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{title}</h3>
-                <p className="text-sm text-muted-foreground">{desc}</p>
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold mb-2">{title}</h3>
+                  <p className="text-sm text-muted-foreground">{desc}</p>
+                </div>
               </Card>
             ))}
           </div>
