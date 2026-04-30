@@ -555,22 +555,24 @@ function FeedOption({
 function StepIngredients({
   search,
   setSearch,
+  available,
   selected,
   onToggle,
 }: {
   search: string;
   setSearch: (v: string) => void;
+  available: IngredientRow[];
   selected: string[];
   onToggle: (ing: string) => void;
 }) {
-  const filtered = INGREDIENTS.filter((i) =>
-    i.toLowerCase().includes(search.toLowerCase())
+  const filtered = available.filter((i) =>
+    i.nome.toLowerCase().includes(search.toLowerCase()),
   );
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Selecione os ingredientes</h2>
       <p className="text-sm text-muted-foreground mb-4">
-        {selected.length} selecionado(s).
+        {selected.length} selecionado(s) — lista vinda da aba <strong>Ingredientes</strong>.
       </p>
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -582,23 +584,33 @@ function StepIngredients({
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-2 max-h-96 overflow-y-auto pr-1">
+        {available.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-2">
+            Nenhum ingrediente cadastrado. Cadastre na aba <strong>Ingredientes</strong>.
+          </p>
+        )}
         {filtered.map((ing) => {
-          const checked = selected.includes(ing);
+          const checked = selected.includes(ing.nome);
           return (
             <Label
-              key={ing}
+              key={ing.id}
               className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                 checked
                   ? "border-primary bg-primary/15"
                   : "border-border bg-card/40 hover:border-primary/50"
               }`}
             >
-              <Checkbox checked={checked} onCheckedChange={() => onToggle(ing)} />
-              <span>{ing}</span>
+              <Checkbox checked={checked} onCheckedChange={() => onToggle(ing.nome)} />
+              <span className="flex-1">{ing.nome}</span>
+              {ing.preco > 0 && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  R$ {ing.preco.toFixed(2)}/kg
+                </span>
+              )}
             </Label>
           );
         })}
-        {filtered.length === 0 && (
+        {available.length > 0 && filtered.length === 0 && (
           <p className="text-sm text-muted-foreground col-span-2">
             Nenhum ingrediente encontrado.
           </p>
