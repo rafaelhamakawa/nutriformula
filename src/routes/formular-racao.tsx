@@ -145,6 +145,21 @@ const STEPS = [
 
 // ---------- Component ----------
 
+interface IngredientRow {
+  id: string;
+  nome: string;
+  preco: number;
+  nutrientes: Record<string, number>;
+}
+
+interface RequirementRow {
+  id: string;
+  especie: string;
+  categoria: string;
+  observacao: string;
+  nutrientes: Record<string, number>;
+}
+
 function FormularRacaoWizard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -159,6 +174,43 @@ function FormularRacaoWizard() {
     calcType: null,
   });
   const [search, setSearch] = useState("");
+  const [reqCategoria, setReqCategoria] = useState<string>("");
+
+  const [ingredientsList] = useSupabaseCollection<
+    IngredientRow,
+    { id: string; user_id: string; nome: string; preco: number | null; nutrientes: Record<string, number> | null }
+  >(
+    "ingredients",
+    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      preco: Number(row.preco) || 0,
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
+
+  const [requirementsList] = useSupabaseCollection<
+    RequirementRow,
+    {
+      id: string;
+      user_id: string;
+      especie: string | null;
+      categoria: string | null;
+      observacao: string | null;
+      nutrientes: Record<string, number> | null;
+    }
+  >(
+    "nutrient_requirements",
+    (it) => ({ especie: it.especie, categoria: it.categoria, observacao: it.observacao, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      especie: row.especie ?? "",
+      categoria: row.categoria ?? "",
+      observacao: row.observacao ?? "",
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
