@@ -124,6 +124,29 @@ const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
   jabuti: "Outros",
 };
 
+// Normaliza textos para comparação tolerante (acento, caixa, espaços).
+const norm = (s: string) =>
+  (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+// Retorna todos os "rótulos" aceitos para a espécie do wizard.
+// Aceita: o grupo (Aves/Suínos/...), o label (Frango, Poedeira...) e o value (frango).
+function specieMatchers(specie: Specie | null): string[] {
+  if (!specie) return [];
+  const labels = SPECIES.filter((s) => s.value === specie).map((s) => s.label);
+  const groups = SPECIES.filter((s) => s.value === specie).map((s) => s.group);
+  return Array.from(new Set([SPECIE_TO_REQ_ESPECIE[specie], ...labels, ...groups, specie])).map(norm);
+}
+
+function requirementMatchesSpecie(reqEspecie: string, specie: Specie | null): boolean {
+  const matchers = specieMatchers(specie);
+  return matchers.includes(norm(reqEspecie));
+}
+
 const NUTRIENTS = [
   { id: "proteina", label: "Proteína bruta" },
   { id: "energia", label: "Energia metabolizável" },
