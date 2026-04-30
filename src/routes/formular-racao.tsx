@@ -303,7 +303,8 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 6 && <StepResult state={state} />}
+          {step === 6 && state.calcType === "manual" && <StepResultManual state={state} />}
+          {step === 6 && state.calcType !== "manual" && <StepResult state={state} />}
           </div>
         </Card>
 
