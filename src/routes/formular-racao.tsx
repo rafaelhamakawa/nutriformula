@@ -656,6 +656,10 @@ function StepNutrients({
 }
 
 function StepRestrictions({
+  specie,
+  requirements,
+  categoria,
+  onCategoriaChange,
   ingredients,
   nutrients,
   ingredientLimits,
@@ -663,6 +667,10 @@ function StepRestrictions({
   setIngredientLimit,
   setNutrientLimit,
 }: {
+  specie: Specie | null;
+  requirements: RequirementRow[];
+  categoria: string;
+  onCategoriaChange: (cat: string) => void;
   ingredients: string[];
   nutrients: string[];
   ingredientLimits: Record<string, Range>;
@@ -670,6 +678,16 @@ function StepRestrictions({
   setIngredientLimit: (id: string, r: Range) => void;
   setNutrientLimit: (id: string, r: Range) => void;
 }) {
+  const especieReq = specie ? SPECIE_TO_REQ_ESPECIE[specie] : null;
+  const categorias = useMemo(
+    () =>
+      requirements
+        .filter((r) => r.especie === especieReq && r.categoria.trim().length > 0)
+        .map((r) => r.categoria),
+    [requirements, especieReq],
+  );
+  const categoriasUnicas = Array.from(new Set(categorias));
+
   return (
     <div className="space-y-8">
       <div>
@@ -677,6 +695,35 @@ function StepRestrictions({
         <p className="text-sm text-muted-foreground mb-4">
           Defina valores mínimo e máximo (opcional).
         </p>
+
+        <div className="rounded-lg border border-border bg-card/40 p-4 space-y-2">
+          <Label className="text-sm">Categoria do animal {especieReq ? `(${especieReq})` : ""}</Label>
+          {categoriasUnicas.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma exigência cadastrada para essa espécie. Cadastre em{" "}
+              <strong>Exigências Nutricionais</strong> para preencher os mínimos automaticamente.
+            </p>
+          ) : (
+            <>
+              <Select value={categoria} onValueChange={onCategoriaChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria/fase..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriasUnicas.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Ao selecionar a categoria, os valores <strong>mínimos</strong> dos nutrientes
+                abaixo são preenchidos automaticamente com a exigência cadastrada.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       <section>
