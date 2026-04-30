@@ -304,6 +304,7 @@ function FormularRacaoWizard() {
             <StepIngredients
               search={search}
               setSearch={setSearch}
+              available={ingredientsList}
               selected={state.ingredients}
               onToggle={(ing) =>
                 setState((s) => ({
