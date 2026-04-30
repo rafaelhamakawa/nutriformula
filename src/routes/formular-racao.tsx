@@ -195,6 +195,40 @@ interface RequirementRow {
   nutrientes: Record<string, number>;
 }
 
+function getRequirementCategories(requirements: RequirementRow[], specie: Specie | null): string[] {
+  const rows = requirements.filter(
+    (r) => requirementMatchesSpecie(r.especie, specie) && r.categoria.trim().length > 0,
+  );
+  return Array.from(new Map(rows.map((r) => [norm(r.categoria), r.categoria.trim()])).values());
+}
+
+function findRequirementForCategory(
+  requirements: RequirementRow[],
+  specie: Specie | null,
+  categoria: string,
+): RequirementRow | undefined {
+  return requirements.find(
+    (r) => norm(r.categoria) === norm(categoria) && requirementMatchesSpecie(r.especie, specie),
+  );
+}
+
+function applyRequirementMinimums(state: WizardState, req: RequirementRow): WizardState {
+  let changed = false;
+  const nextLimits = { ...state.nutrientLimits };
+  for (const wid of state.nutrients) {
+    const v = getRequirementNutrientValue(req.nutrientes, wid);
+    if (typeof v === "number" && Number.isFinite(v)) {
+      const current = nextLimits[wid] ?? { min: "", max: "" };
+      const min = String(v);
+      if (current.min !== min) {
+        nextLimits[wid] = { ...current, min };
+        changed = true;
+      }
+    }
+  }
+  return changed ? { ...state, nutrientLimits: nextLimits } : state;
+}
+
 function FormularRacaoWizard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -250,6 +284,22 @@ function FormularRacaoWizard() {
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    setReqCategoria((current) => {
+      if (!state.specie) return "";
+      const categories = getRequirementCategories(requirementsList, state.specie);
+      if (current && categories.some((cat) => norm(cat) === norm(current))) return current;
+      return categories[0] ?? "";
+    });
+  }, [requirementsList, state.specie]);
+
+  useEffect(() => {
+    if (!reqCategoria) return;
+    const req = findRequirementForCategory(requirementsList, state.specie, reqCategoria);
+    if (!req) return;
+    setState((s) => applyRequirementMinimums(s, req));
+  }, [requirementsList, reqCategoria, state.specie, state.nutrients]);
 
   if (loading || !user) {
     return <LogoLoader label="Preparando o formulador..." />;
@@ -373,25 +423,9 @@ function FormularRacaoWizard() {
               categoria={reqCategoria}
               onCategoriaChange={(cat) => {
                 setReqCategoria(cat);
-                const req = requirementsList.find(
-                  (r) =>
-                    norm(r.categoria) === norm(cat) &&
-                    requirementMatchesSpecie(r.especie, state.specie),
-                );
+                const req = findRequirementForCategory(requirementsList, state.specie, cat);
                 if (!req) return;
-                // Pré-preenche os mínimos dos nutrientes selecionados a partir
-                // da exigência da categoria escolhida.
-                setState((s) => {
-                  const next = { ...s.nutrientLimits };
-                  for (const wid of s.nutrients) {
-                    const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
-                    const v = req.nutrientes?.[key];
-                    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-                      next[wid] = { min: String(v), max: next[wid]?.max ?? "" };
-                    }
-                  }
-                  return { ...s, nutrientLimits: next };
-                });
+                setState((s) => applyRequirementMinimums(s, req));
               }}
               ingredients={state.ingredients}
               nutrients={state.nutrients}
@@ -881,6 +915,27 @@ const WIZARD_TO_NUTRIENT_KEY: Record<string, string> = {
   calcio: "calcio",
   fosforo: "fosforo_dig",
 };
+
+const REQUIREMENT_NUTRIENT_ALIASES: Record<string, string[]> = {
+  proteina: ["proteina_bruta", "proteína bruta", "proteina", "pb"],
+  energia: ["energia_metabolizavel", "energia metabolizável", "energia_digestivel", "energia digestível", "energia", "em", "ed"],
+  lisina: ["lisina_dig", "lisina digestível", "lisina", "lisina_digestivel"],
+  metionina: ["met_cist_dig", "met. + cist. digestível", "metionina", "metionina_dig", "met_cist", "metionina_cistina"],
+  calcio: ["calcio", "cálcio", "ca"],
+  fosforo: ["fosforo_dig", "fósforo digestível", "fosforo", "fósforo", "fosforo_digestivel", "p"],
+};
+
+function getRequirementNutrientValue(nutrientes: Record<string, unknown>, wizardId: string): number | undefined {
+  const nutrientKeyNorm = (s: string) => norm(s).replace(/[^a-z0-9]+/g, "");
+  const wanted = [WIZARD_TO_NUTRIENT_KEY[wizardId] ?? wizardId, ...(REQUIREMENT_NUTRIENT_ALIASES[wizardId] ?? [])].map(nutrientKeyNorm);
+  for (const [key, value] of Object.entries(nutrientes ?? {})) {
+    if (wanted.includes(nutrientKeyNorm(key))) {
+      const n = Number(value);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    }
+  }
+  return undefined;
+}
 
 function StepResult({ state }: { state: WizardState }) {
   const [items] = useSupabaseCollection<
