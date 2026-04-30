@@ -363,9 +363,8 @@ function FormularRacaoWizard() {
                 setReqCategoria(cat);
                 const req = requirementsList.find(
                   (r) =>
-                    r.categoria === cat &&
-                    state.specie != null &&
-                    r.especie === SPECIE_TO_REQ_ESPECIE[state.specie],
+                    norm(r.categoria) === norm(cat) &&
+                    requirementMatchesSpecie(r.especie, state.specie),
                 );
                 if (!req) return;
                 // Pré-preenche os mínimos dos nutrientes selecionados a partir
