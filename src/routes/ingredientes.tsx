@@ -437,57 +437,74 @@ function IngredientesPage() {
 
 // ---------- CSV parser ----------
 
+function parseCsvLine(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cur += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === sep) { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
 function parseCsv(text: string): {
   rows: Omit<Ingredient, "id">[];
   errors: string[];
 } {
   const errors: string[] = [];
   const rows: Omit<Ingredient, "id">[] = [];
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
+
+  // Strip BOM
+  const cleaned = text.replace(/^\uFEFF/, "");
+  const lines = cleaned.split(/\r?\n/).filter((l) => l.trim().length > 0);
 
   if (lines.length === 0) {
     return { rows, errors: ["Arquivo vazio."] };
   }
 
-  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const required = ["nome"];
-  const missing = required.filter((h) => !header.includes(h));
-  if (missing.length) {
+  // Detect separator: prefer the one that yields more columns in header
+  const sep = (lines[0].split(";").length > lines[0].split(",").length) ? ";" : ",";
+
+  const header = parseCsvLine(lines[0], sep).map((h) => h.toLowerCase());
+  if (!header.includes("nome")) {
     return {
       rows,
-      errors: [`Cabeçalho inválido. Faltando: ${missing.join(", ")}.`],
+      errors: [`Cabeçalho inválido. Faltando: nome. Encontrado: ${header.join(", ")}`],
     };
   }
 
+  const idxOf = (k: string) => header.indexOf(k.toLowerCase());
+
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
-    if (cols.length !== header.length) {
-      errors.push(`Linha ${i + 1}: número de colunas incorreto.`);
-      continue;
-    }
-    const get = (k: string) => cols[header.indexOf(k)];
+    const cols = parseCsvLine(lines[i], sep);
+    const get = (k: string) => {
+      const idx = idxOf(k);
+      return idx >= 0 ? (cols[idx] ?? "") : "";
+    };
     const nome = get("nome");
     if (!nome) {
       errors.push(`Linha ${i + 1}: nome vazio.`);
       continue;
     }
     const nutrientes = emptyNutrients();
-    let bad = false;
     for (const c of NUTRIENT_COLUMNS) {
-      if (!header.includes(c.key)) continue;
-      const v = Number(get(c.key));
-      if (Number.isNaN(v)) {
-        errors.push(`Linha ${i + 1}: "${c.key}" inválido.`);
-        bad = true;
-        break;
-      }
-      nutrientes[c.key] = v;
+      if (idxOf(c.key) < 0) continue;
+      const raw = get(c.key).replace(",", ".");
+      if (raw === "") continue;
+      const v = Number(raw);
+      if (Number.isFinite(v)) nutrientes[c.key] = v;
     }
-    if (bad) continue;
-    const precoRaw = header.includes("preco") ? Number(get("preco")) : 0;
+    const precoRaw = idxOf("preco") >= 0 ? Number(get("preco").replace(",", ".")) : 0;
     const preco = Number.isFinite(precoRaw) ? precoRaw : 0;
     rows.push({ nome, preco, nutrientes });
   }
