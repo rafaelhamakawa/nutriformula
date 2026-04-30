@@ -8,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/use-auth";
+import { PageHeader } from "@/components/page-header";
 import {
   ArrowLeft,
   ArrowRight,
-  Calculator,
   Check,
   Search,
   Sparkles,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
+import iconFormular from "@/assets/dashboard/formular.png";
 import frangoImg from "@/assets/species/frango.png";
 import poedeiraImg from "@/assets/species/poedeira.png";
 import codornaImg from "@/assets/species/codorna.png";
