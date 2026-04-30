@@ -35,10 +35,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
+import { PageHeader } from "@/components/page-header";
+import iconIngredientes from "@/assets/dashboard/ingredientes.png";
 import {
   AlertCircle,
-  Beaker,
   Download,
   Pencil,
   Plus,
