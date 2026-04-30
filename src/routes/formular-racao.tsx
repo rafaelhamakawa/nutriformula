@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { NUTRIENT_COLUMNS } from "@/routes/ingredientes";
+
 import frangoImg from "@/assets/species/frango.png";
 import poedeiraImg from "@/assets/species/poedeira.png";
 import codornaImg from "@/assets/species/codorna.png";
