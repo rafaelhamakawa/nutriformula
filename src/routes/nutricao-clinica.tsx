@@ -206,7 +206,44 @@ function FieldHelp({ text }: { text: string }) {
 function NutricaoClinicaPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [patients, setPatients] = useLocalStorage<Patient[]>("nf:patients", []);
+  const [patients, setPatients] = useSupabaseCollection<Patient, Patient & { user_id: string }>(
+    "patients",
+    (p) => ({
+      nome: p.nome,
+      especie: p.especie,
+      raca: p.raca,
+      idade: p.idade,
+      sexo: p.sexo,
+      peso: p.peso,
+      condicao_corporal: p.condicaoCorporal,
+      comorbidades: p.comorbidades,
+      observacoes: p.observacoes,
+      idade_anos: p.idadeAnos ?? null,
+      circ_cabeca: p.circCabeca ?? null,
+      circ_torax: p.circTorax ?? null,
+      circ_pelve: p.circPelve ?? null,
+      comp_membro_ant: p.compMembroAnt ?? null,
+      comp_membro_pelv: p.compMembroPelv ?? null,
+    }),
+    (row: any) => ({
+      id: row.id,
+      nome: row.nome ?? "",
+      especie: row.especie ?? "",
+      raca: row.raca ?? "",
+      idade: row.idade ?? "",
+      sexo: (row.sexo ?? "") as Patient["sexo"],
+      peso: Number(row.peso) || 0,
+      condicaoCorporal: Number(row.condicao_corporal) || 0,
+      comorbidades: row.comorbidades ?? "",
+      observacoes: row.observacoes ?? "",
+      idadeAnos: row.idade_anos != null ? Number(row.idade_anos) : undefined,
+      circCabeca: row.circ_cabeca != null ? Number(row.circ_cabeca) : undefined,
+      circTorax: row.circ_torax != null ? Number(row.circ_torax) : undefined,
+      circPelve: row.circ_pelve != null ? Number(row.circ_pelve) : undefined,
+      compMembroAnt: row.comp_membro_ant != null ? Number(row.comp_membro_ant) : undefined,
+      compMembroPelv: row.comp_membro_pelv != null ? Number(row.comp_membro_pelv) : undefined,
+    }),
+  );
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState(empty());
