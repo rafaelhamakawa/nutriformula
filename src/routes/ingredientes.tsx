@@ -215,18 +215,11 @@ function IngredientesPage() {
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <AppHeader />
       <main className="container mx-auto px-6 py-8 md:py-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Beaker className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">Ingredientes</h1>
-        </div>
-        <p className="text-muted-foreground mb-6">
-          Cadastre, edite e importe ingredientes via CSV.
-        </p>
+        <PageHeader
+          icon={iconIngredientes}
+          title="Ingredientes"
+          description="Cadastre, edite e importe ingredientes via CSV."
+        />
 
         <Card className="p-4 md:p-6 bg-card/60 backdrop-blur border-border/50 mb-6">
           <div className="flex flex-wrap gap-3 items-center justify-between">
