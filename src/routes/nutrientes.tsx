@@ -90,6 +90,13 @@ function NutrientesPage() {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
 
+  useEffect(() => {
+    if (items.length === 0) {
+      setItems(DEFAULT_NUTRIENTS.map((n) => ({ id: crypto.randomUUID(), ...n })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const filtered = useMemo(
     () =>
       items.filter(
