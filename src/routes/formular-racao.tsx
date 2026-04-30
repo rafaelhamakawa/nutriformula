@@ -110,22 +110,19 @@ const SPECIES: { value: Specie; label: string; group: string }[] = [
 
 const NATURAL_ALLOWED: Specie[] = ["caes", "gatos", "jabuti", "calopsita"];
 
-const INGREDIENTS = [
-  "Milho moído",
-  "Farelo de soja",
-  "Farelo de trigo",
-  "Sorgo",
-  "Farinha de carne",
-  "Farinha de peixe",
-  "Óleo de soja",
-  "Calcário calcítico",
-  "Fosfato bicálcico",
-  "Sal comum",
-  "DL-Metionina",
-  "L-Lisina",
-  "Premix vitamínico",
-  "Premix mineral",
-];
+// Mapeia a espécie do wizard para o rótulo amplo usado em "Exigências Nutricionais".
+const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
+  frango: "Aves",
+  poedeira: "Aves",
+  codorna: "Aves",
+  calopsita: "Aves",
+  suinos: "Suínos",
+  "bovino-corte": "Bovinos",
+  equinos: "Equinos",
+  caes: "Cães",
+  gatos: "Gatos",
+  jabuti: "Outros",
+};
 
 const NUTRIENTS = [
   { id: "proteina", label: "Proteína bruta" },
