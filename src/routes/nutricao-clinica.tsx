@@ -331,25 +331,16 @@ function NutricaoClinicaPage() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="container mx-auto px-6 py-10">
-          <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div
-                className="rounded-lg p-3"
-                style={{ background: "var(--gradient-primary)" }}
-              >
-                <HeartPulse className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">Nutrição Clínica</h1>
-                <p className="text-sm text-muted-foreground">
-                  Cadastro de pacientes e cálculo de dieta
-                </p>
-              </div>
-            </div>
-            <Button onClick={openNew}>
-              <Plus className="h-4 w-4 mr-2" /> Novo paciente
-            </Button>
-          </div>
+          <PageHeader
+            icon={iconClinica}
+            title="Nutrição Clínica"
+            description="Cadastro de pacientes e cálculo de dieta."
+            right={
+              <Button onClick={openNew}>
+                <Plus className="h-4 w-4 mr-2" /> Novo paciente
+              </Button>
+            }
+          />
 
           <Card className="bg-card/40 backdrop-blur">
             <Table>
