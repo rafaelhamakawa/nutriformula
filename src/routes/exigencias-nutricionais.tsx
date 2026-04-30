@@ -110,6 +110,7 @@ function ExigenciasPage() {
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState<Omit<Requirement, "id">>(empty);
   const [toDelete, setToDelete] = useState<Requirement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -169,6 +170,98 @@ function ExigenciasPage() {
     setToDelete(null);
   };
 
+  const exportCsv = () => {
+    const headers = ["especie", "categoria", "observacao", ...NUTRIENT_COLUMNS.map((c) => c.key)];
+    const escape = (v: string) => {
+      const s = String(v ?? "");
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(",")];
+    for (const it of items) {
+      const row = [
+        escape(it.especie),
+        escape(it.categoria),
+        escape(it.observacao),
+        ...NUTRIENT_COLUMNS.map((c) => String(it.nutrientes[c.key] ?? 0)),
+      ];
+      lines.push(row.join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `exigencias-nutricionais-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado.");
+  };
+
+  const parseCsvLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else cur += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === "," || ch === ";") { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      const rawLines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (rawLines.length < 2) {
+        toast.error("CSV vazio ou sem dados.");
+        return;
+      }
+      const headers = parseCsvLine(rawLines[0]).map((h) => h.trim().toLowerCase());
+      const idxOf = (name: string) => headers.indexOf(name.toLowerCase());
+      const iEsp = idxOf("especie");
+      const iCat = idxOf("categoria");
+      const iObs = idxOf("observacao");
+      if (iEsp < 0 || iCat < 0) {
+        toast.error("Cabeçalho deve conter 'especie' e 'categoria'.");
+        return;
+      }
+      const imported: Requirement[] = [];
+      for (let r = 1; r < rawLines.length; r++) {
+        const cols = parseCsvLine(rawLines[r]);
+        const nutrientes = emptyNutrients();
+        for (const c of NUTRIENT_COLUMNS) {
+          const idx = idxOf(c.key);
+          if (idx >= 0) {
+            const v = parseFloat((cols[idx] ?? "").replace(",", "."));
+            nutrientes[c.key] = isNaN(v) ? 0 : v;
+          }
+        }
+        imported.push({
+          id: crypto.randomUUID(),
+          especie: (cols[iEsp] ?? "").trim(),
+          categoria: (cols[iCat] ?? "").trim(),
+          observacao: iObs >= 0 ? (cols[iObs] ?? "").trim() : "",
+          nutrientes,
+        });
+      }
+      setItems([...items, ...imported]);
+      toast.success(`${imported.length} exigência(s) importada(s).`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao importar CSV.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <AppHeader />
@@ -178,9 +271,27 @@ function ExigenciasPage() {
           title="Exigências Nutricionais"
           description="Cadastre as exigências por espécie e categoria animal."
           right={
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" /> Nova exigência
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleImport(f);
+                }}
+              />
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Importar CSV
+              </Button>
+              <Button variant="outline" onClick={exportCsv}>
+                <Download className="h-4 w-4 mr-2" /> Exportar CSV
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" /> Nova exigência
+              </Button>
+            </div>
           }
         />
 
