@@ -25,7 +25,37 @@ import {
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { Atom, Pencil, Plus, Search } from "lucide-react";
+import { Pencil, Plus, Search } from "lucide-react";
+import iconNutrientes from "@/assets/dashboard/nutrientes.png";
+
+const DEFAULT_NUTRIENTS: Omit<Nutrient, "id">[] = [
+  { nome: "Proteína Bruta", unidade: "%", categoria: "Macronutriente", descricao: "" },
+  { nome: "Energia Digestível", unidade: "kcal/kg", categoria: "Energia", descricao: "" },
+  { nome: "Gordura", unidade: "%", categoria: "Macronutriente", descricao: "" },
+  { nome: "Ac. Linoléico", unidade: "%", categoria: "Ácido graxo", descricao: "" },
+  { nome: "Amido", unidade: "%", categoria: "Carboidrato", descricao: "" },
+  { nome: "Fibra bruta", unidade: "%", categoria: "Fibra", descricao: "" },
+  { nome: "FDN", unidade: "%", categoria: "Fibra", descricao: "Fibra em detergente neutro" },
+  { nome: "FDA", unidade: "%", categoria: "Fibra", descricao: "Fibra em detergente ácido" },
+  { nome: "Lisina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Met. + Cist. Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Treonina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Triptofano Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Isoleucina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Valina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Leucina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Arginina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Fen. + Tir. Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Histidina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Glutamato Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Fósforo Digestível", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Cálcio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Potássio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Sódio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Cloro", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Glutamina", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Alanina", unidade: "%", categoria: "Aminoácido", descricao: "" },
+];
 
 export const Route = createFileRoute("/nutrientes")({
   head: () => ({ meta: [{ title: "Nutrientes — NutriForm" }] }),
@@ -59,6 +89,13 @@ function NutrientesPage() {
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setItems(DEFAULT_NUTRIENTS.map((n) => ({ id: crypto.randomUUID(), ...n })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -107,11 +144,8 @@ function NutrientesPage() {
       <AppHeader />
       <main className="container mx-auto px-6 py-8 md:py-10">
         <div className="flex items-center gap-3 mb-1">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Atom className="h-5 w-5 text-primary-foreground" />
+          <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl overflow-hidden flex items-center justify-center">
+            <img src={iconNutrientes} alt="Nutrientes" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold">Nutrientes</h1>
         </div>
