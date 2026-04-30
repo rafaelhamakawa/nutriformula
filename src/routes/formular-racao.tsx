@@ -124,6 +124,29 @@ const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
   jabuti: "Outros",
 };
 
+// Normaliza textos para comparação tolerante (acento, caixa, espaços).
+const norm = (s: string) =>
+  (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+// Retorna todos os "rótulos" aceitos para a espécie do wizard.
+// Aceita: o grupo (Aves/Suínos/...), o label (Frango, Poedeira...) e o value (frango).
+function specieMatchers(specie: Specie | null): string[] {
+  if (!specie) return [];
+  const labels = SPECIES.filter((s) => s.value === specie).map((s) => s.label);
+  const groups = SPECIES.filter((s) => s.value === specie).map((s) => s.group);
+  return Array.from(new Set([SPECIE_TO_REQ_ESPECIE[specie], ...labels, ...groups, specie])).map(norm);
+}
+
+function requirementMatchesSpecie(reqEspecie: string, specie: Specie | null): boolean {
+  const matchers = specieMatchers(specie);
+  return matchers.includes(norm(reqEspecie));
+}
+
 const NUTRIENTS = [
   { id: "proteina", label: "Proteína bruta" },
   { id: "energia", label: "Energia metabolizável" },
@@ -340,9 +363,8 @@ function FormularRacaoWizard() {
                 setReqCategoria(cat);
                 const req = requirementsList.find(
                   (r) =>
-                    r.categoria === cat &&
-                    state.specie != null &&
-                    r.especie === SPECIE_TO_REQ_ESPECIE[state.specie],
+                    norm(r.categoria) === norm(cat) &&
+                    requirementMatchesSpecie(r.especie, state.specie),
                 );
                 if (!req) return;
                 // Pré-preenche os mínimos dos nutrientes selecionados a partir
@@ -682,9 +704,9 @@ function StepRestrictions({
   const categorias = useMemo(
     () =>
       requirements
-        .filter((r) => r.especie === especieReq && r.categoria.trim().length > 0)
+        .filter((r) => requirementMatchesSpecie(r.especie, specie) && r.categoria.trim().length > 0)
         .map((r) => r.categoria),
-    [requirements, especieReq],
+    [requirements, specie],
   );
   const categoriasUnicas = Array.from(new Set(categorias));
 
