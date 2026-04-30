@@ -144,11 +144,8 @@ function NutrientesPage() {
       <AppHeader />
       <main className="container mx-auto px-6 py-8 md:py-10">
         <div className="flex items-center gap-3 mb-1">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Atom className="h-5 w-5 text-primary-foreground" />
+          <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl overflow-hidden flex items-center justify-center">
+            <img src={iconNutrientes} alt="Nutrientes" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold">Nutrientes</h1>
         </div>
