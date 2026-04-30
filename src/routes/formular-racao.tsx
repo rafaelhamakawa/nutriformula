@@ -195,6 +195,40 @@ interface RequirementRow {
   nutrientes: Record<string, number>;
 }
 
+function getRequirementCategories(requirements: RequirementRow[], specie: Specie | null): string[] {
+  const rows = requirements.filter(
+    (r) => requirementMatchesSpecie(r.especie, specie) && r.categoria.trim().length > 0,
+  );
+  return Array.from(new Map(rows.map((r) => [norm(r.categoria), r.categoria.trim()])).values());
+}
+
+function findRequirementForCategory(
+  requirements: RequirementRow[],
+  specie: Specie | null,
+  categoria: string,
+): RequirementRow | undefined {
+  return requirements.find(
+    (r) => norm(r.categoria) === norm(categoria) && requirementMatchesSpecie(r.especie, specie),
+  );
+}
+
+function applyRequirementMinimums(state: WizardState, req: RequirementRow): WizardState {
+  let changed = false;
+  const nextLimits = { ...state.nutrientLimits };
+  for (const wid of state.nutrients) {
+    const v = getRequirementNutrientValue(req.nutrientes, wid);
+    if (typeof v === "number" && Number.isFinite(v)) {
+      const current = nextLimits[wid] ?? { min: "", max: "" };
+      const min = String(v);
+      if (current.min !== min) {
+        nextLimits[wid] = { ...current, min };
+        changed = true;
+      }
+    }
+  }
+  return changed ? { ...state, nutrientLimits: nextLimits } : state;
+}
+
 function FormularRacaoWizard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
