@@ -1,6 +1,6 @@
 import { LogoLoader } from "@/components/logo-loader";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,7 +43,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
 import { PageHeader } from "@/components/page-header";
 import iconNatural from "@/assets/dashboard/natural.png";
-import { Pencil, Plus, Search, Sprout, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Search, Sprout, Trash2, Upload } from "lucide-react";
 import seedData from "@/data/natural-foods-seed.json";
 
 export const Route = createFileRoute("/alimentacao-natural")({
@@ -154,6 +154,7 @@ function AlimentacaoNaturalPage() {
   const [editing, setEditing] = useState<NaturalFood | null>(null);
   const [form, setForm] = useState<Omit<NaturalFood, "id">>(emptyForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -236,6 +237,109 @@ function AlimentacaoNaturalPage() {
     toast.success(`${toAdd.length} alimento(s) importado(s) da base.`);
   };
 
+  const exportCsv = () => {
+    const headers = ["nome", "categoria", "origem", ...NUTRIENT_COLUMNS.map((c) => c.key)];
+    const escape = (v: string) => {
+      const s = String(v ?? "");
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(",")];
+    for (const it of items) {
+      lines.push(
+        [
+          escape(it.nome),
+          escape(it.categoria),
+          escape(it.origem),
+          ...NUTRIENT_COLUMNS.map((c) => String(it.nutrientes[c.key] ?? 0)),
+        ].join(","),
+      );
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `alimentacao-natural-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado.");
+  };
+
+  const parseCsvLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else cur += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === "," || ch === ";") { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      const rawLines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (rawLines.length < 2) {
+        toast.error("CSV vazio ou sem dados.");
+        return;
+      }
+      const headers = parseCsvLine(rawLines[0]).map((h) => h.trim().toLowerCase());
+      const idxOf = (name: string) => headers.indexOf(name.toLowerCase());
+      const iNome = idxOf("nome");
+      const iCat = idxOf("categoria");
+      const iOri = idxOf("origem");
+      if (iNome < 0) {
+        toast.error("Cabeçalho deve conter ao menos 'nome'.");
+        return;
+      }
+      const existingNames = new Set(items.map((i) => i.nome.toLowerCase()));
+      const imported: NaturalFood[] = [];
+      let skipped = 0;
+      for (let r = 1; r < rawLines.length; r++) {
+        const cols = parseCsvLine(rawLines[r]);
+        const nome = (cols[iNome] ?? "").trim();
+        if (!nome) continue;
+        if (existingNames.has(nome.toLowerCase())) { skipped++; continue; }
+        const nutrientes = emptyNutrients();
+        for (const c of NUTRIENT_COLUMNS) {
+          const idx = idxOf(c.key);
+          if (idx >= 0) {
+            const v = parseFloat((cols[idx] ?? "").replace(",", "."));
+            nutrientes[c.key] = isNaN(v) ? 0 : v;
+          }
+        }
+        imported.push({
+          id: crypto.randomUUID(),
+          nome,
+          categoria: iCat >= 0 ? (cols[iCat] ?? "outro").trim() || "outro" : "outro",
+          origem: iOri >= 0 ? (cols[iOri] ?? "animal").trim() || "animal" : "animal",
+          nutrientes,
+        });
+        existingNames.add(nome.toLowerCase());
+      }
+      if (imported.length === 0) {
+        toast.info("Nenhum alimento novo para importar.");
+        return;
+      }
+      setItems([...items, ...imported]);
+      toast.success(`${imported.length} importado(s)${skipped ? `, ${skipped} ignorado(s)` : ""}.`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao importar CSV.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <AppHeader />
@@ -271,6 +375,22 @@ function AlimentacaoNaturalPage() {
               </SelectContent>
             </Select>
             <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleImport(f);
+                }}
+              />
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Importar CSV
+              </Button>
+              <Button variant="outline" onClick={exportCsv}>
+                <Download className="h-4 w-4 mr-2" /> Exportar CSV
+              </Button>
               <Button variant="outline" onClick={populateSeed} disabled={itemsLoading}>
                 <Sprout className="h-4 w-4 mr-2" /> Popular base
               </Button>
