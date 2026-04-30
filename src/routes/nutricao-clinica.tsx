@@ -46,8 +46,10 @@ import {
 } from "@/components/ui/tooltip";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { Calculator, HeartPulse, HelpCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
+import { PageHeader } from "@/components/page-header";
+import iconClinica from "@/assets/dashboard/clinica.png";
+import { Calculator, HelpCircle, Pencil, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/nutricao-clinica")({
   head: () => ({ meta: [{ title: "Nutrição Clínica — NutriForm" }] }),
