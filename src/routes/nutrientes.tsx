@@ -23,8 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
 import { Pencil, Plus, Search } from "lucide-react";
 import iconNutrientes from "@/assets/dashboard/nutrientes.png";
 
