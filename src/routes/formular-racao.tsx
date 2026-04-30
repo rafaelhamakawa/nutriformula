@@ -187,18 +187,11 @@ function FormularRacaoWizard() {
       </header>
 
       <main className="container mx-auto px-6 py-10 max-w-4xl">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Calculator className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">Formular Ração</h1>
-        </div>
-        <p className="text-muted-foreground mb-6">
-          Etapa {step + 1} de {STEPS.length} — {STEPS[step]}
-        </p>
+        <PageHeader
+          icon={iconFormular}
+          title="Formular Ração"
+          description={`Etapa ${step + 1} de ${STEPS.length} — ${STEPS[step]}`}
+        />
 
         {/* Progress */}
         <div className="flex gap-2 mb-8">
