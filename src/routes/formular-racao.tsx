@@ -26,6 +26,14 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import iconFormular from "@/assets/dashboard/formular.png";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import frangoImg from "@/assets/species/frango.png";
 import poedeiraImg from "@/assets/species/poedeira.png";
 import codornaImg from "@/assets/species/codorna.png";
@@ -102,22 +110,19 @@ const SPECIES: { value: Specie; label: string; group: string }[] = [
 
 const NATURAL_ALLOWED: Specie[] = ["caes", "gatos", "jabuti", "calopsita"];
 
-const INGREDIENTS = [
-  "Milho moído",
-  "Farelo de soja",
-  "Farelo de trigo",
-  "Sorgo",
-  "Farinha de carne",
-  "Farinha de peixe",
-  "Óleo de soja",
-  "Calcário calcítico",
-  "Fosfato bicálcico",
-  "Sal comum",
-  "DL-Metionina",
-  "L-Lisina",
-  "Premix vitamínico",
-  "Premix mineral",
-];
+// Mapeia a espécie do wizard para o rótulo amplo usado em "Exigências Nutricionais".
+const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
+  frango: "Aves",
+  poedeira: "Aves",
+  codorna: "Aves",
+  calopsita: "Aves",
+  suinos: "Suínos",
+  "bovino-corte": "Bovinos",
+  equinos: "Equinos",
+  caes: "Cães",
+  gatos: "Gatos",
+  jabuti: "Outros",
+};
 
 const NUTRIENTS = [
   { id: "proteina", label: "Proteína bruta" },
@@ -140,6 +145,21 @@ const STEPS = [
 
 // ---------- Component ----------
 
+interface IngredientRow {
+  id: string;
+  nome: string;
+  preco: number;
+  nutrientes: Record<string, number>;
+}
+
+interface RequirementRow {
+  id: string;
+  especie: string;
+  categoria: string;
+  observacao: string;
+  nutrientes: Record<string, number>;
+}
+
 function FormularRacaoWizard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -154,6 +174,43 @@ function FormularRacaoWizard() {
     calcType: null,
   });
   const [search, setSearch] = useState("");
+  const [reqCategoria, setReqCategoria] = useState<string>("");
+
+  const [ingredientsList] = useSupabaseCollection<
+    IngredientRow,
+    { id: string; user_id: string; nome: string; preco: number | null; nutrientes: Record<string, number> | null }
+  >(
+    "ingredients",
+    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      preco: Number(row.preco) || 0,
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
+
+  const [requirementsList] = useSupabaseCollection<
+    RequirementRow,
+    {
+      id: string;
+      user_id: string;
+      especie: string | null;
+      categoria: string | null;
+      observacao: string | null;
+      nutrientes: Record<string, number> | null;
+    }
+  >(
+    "nutrient_requirements",
+    (it) => ({ especie: it.especie, categoria: it.categoria, observacao: it.observacao, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      especie: row.especie ?? "",
+      categoria: row.categoria ?? "",
+      observacao: row.observacao ?? "",
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -247,6 +304,7 @@ function FormularRacaoWizard() {
             <StepIngredients
               search={search}
               setSearch={setSearch}
+              available={ingredientsList}
               selected={state.ingredients}
               onToggle={(ing) =>
                 setState((s) => ({
@@ -275,6 +333,32 @@ function FormularRacaoWizard() {
 
           {step === 4 && (
             <StepRestrictions
+              specie={state.specie}
+              requirements={requirementsList}
+              categoria={reqCategoria}
+              onCategoriaChange={(cat) => {
+                setReqCategoria(cat);
+                const req = requirementsList.find(
+                  (r) =>
+                    r.categoria === cat &&
+                    state.specie != null &&
+                    r.especie === SPECIE_TO_REQ_ESPECIE[state.specie],
+                );
+                if (!req) return;
+                // Pré-preenche os mínimos dos nutrientes selecionados a partir
+                // da exigência da categoria escolhida.
+                setState((s) => {
+                  const next = { ...s.nutrientLimits };
+                  for (const wid of s.nutrients) {
+                    const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
+                    const v = req.nutrientes?.[key];
+                    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+                      next[wid] = { min: String(v), max: next[wid]?.max ?? "" };
+                    }
+                  }
+                  return { ...s, nutrientLimits: next };
+                });
+              }}
               ingredients={state.ingredients}
               nutrients={state.nutrients}
               ingredientLimits={state.ingredientLimits}
@@ -471,22 +555,24 @@ function FeedOption({
 function StepIngredients({
   search,
   setSearch,
+  available,
   selected,
   onToggle,
 }: {
   search: string;
   setSearch: (v: string) => void;
+  available: IngredientRow[];
   selected: string[];
   onToggle: (ing: string) => void;
 }) {
-  const filtered = INGREDIENTS.filter((i) =>
-    i.toLowerCase().includes(search.toLowerCase())
+  const filtered = available.filter((i) =>
+    i.nome.toLowerCase().includes(search.toLowerCase()),
   );
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Selecione os ingredientes</h2>
       <p className="text-sm text-muted-foreground mb-4">
-        {selected.length} selecionado(s).
+        {selected.length} selecionado(s) — lista vinda da aba <strong>Ingredientes</strong>.
       </p>
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -498,23 +584,33 @@ function StepIngredients({
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-2 max-h-96 overflow-y-auto pr-1">
+        {available.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-2">
+            Nenhum ingrediente cadastrado. Cadastre na aba <strong>Ingredientes</strong>.
+          </p>
+        )}
         {filtered.map((ing) => {
-          const checked = selected.includes(ing);
+          const checked = selected.includes(ing.nome);
           return (
             <Label
-              key={ing}
+              key={ing.id}
               className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                 checked
                   ? "border-primary bg-primary/15"
                   : "border-border bg-card/40 hover:border-primary/50"
               }`}
             >
-              <Checkbox checked={checked} onCheckedChange={() => onToggle(ing)} />
-              <span>{ing}</span>
+              <Checkbox checked={checked} onCheckedChange={() => onToggle(ing.nome)} />
+              <span className="flex-1">{ing.nome}</span>
+              {ing.preco > 0 && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  R$ {ing.preco.toFixed(2)}/kg
+                </span>
+              )}
             </Label>
           );
         })}
-        {filtered.length === 0 && (
+        {available.length > 0 && filtered.length === 0 && (
           <p className="text-sm text-muted-foreground col-span-2">
             Nenhum ingrediente encontrado.
           </p>
@@ -560,6 +656,10 @@ function StepNutrients({
 }
 
 function StepRestrictions({
+  specie,
+  requirements,
+  categoria,
+  onCategoriaChange,
   ingredients,
   nutrients,
   ingredientLimits,
@@ -567,6 +667,10 @@ function StepRestrictions({
   setIngredientLimit,
   setNutrientLimit,
 }: {
+  specie: Specie | null;
+  requirements: RequirementRow[];
+  categoria: string;
+  onCategoriaChange: (cat: string) => void;
   ingredients: string[];
   nutrients: string[];
   ingredientLimits: Record<string, Range>;
@@ -574,6 +678,16 @@ function StepRestrictions({
   setIngredientLimit: (id: string, r: Range) => void;
   setNutrientLimit: (id: string, r: Range) => void;
 }) {
+  const especieReq = specie ? SPECIE_TO_REQ_ESPECIE[specie] : null;
+  const categorias = useMemo(
+    () =>
+      requirements
+        .filter((r) => r.especie === especieReq && r.categoria.trim().length > 0)
+        .map((r) => r.categoria),
+    [requirements, especieReq],
+  );
+  const categoriasUnicas = Array.from(new Set(categorias));
+
   return (
     <div className="space-y-8">
       <div>
@@ -581,6 +695,35 @@ function StepRestrictions({
         <p className="text-sm text-muted-foreground mb-4">
           Defina valores mínimo e máximo (opcional).
         </p>
+
+        <div className="rounded-lg border border-border bg-card/40 p-4 space-y-2">
+          <Label className="text-sm">Categoria do animal {especieReq ? `(${especieReq})` : ""}</Label>
+          {categoriasUnicas.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma exigência cadastrada para essa espécie. Cadastre em{" "}
+              <strong>Exigências Nutricionais</strong> para preencher os mínimos automaticamente.
+            </p>
+          ) : (
+            <>
+              <Select value={categoria} onValueChange={onCategoriaChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria/fase..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriasUnicas.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Ao selecionar a categoria, os valores <strong>mínimos</strong> dos nutrientes
+                abaixo são preenchidos automaticamente com a exigência cadastrada.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       <section>
