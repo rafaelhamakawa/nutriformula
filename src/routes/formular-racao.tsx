@@ -333,6 +333,32 @@ function FormularRacaoWizard() {
 
           {step === 4 && (
             <StepRestrictions
+              specie={state.specie}
+              requirements={requirementsList}
+              categoria={reqCategoria}
+              onCategoriaChange={(cat) => {
+                setReqCategoria(cat);
+                const req = requirementsList.find(
+                  (r) =>
+                    r.categoria === cat &&
+                    state.specie != null &&
+                    r.especie === SPECIE_TO_REQ_ESPECIE[state.specie],
+                );
+                if (!req) return;
+                // Pré-preenche os mínimos dos nutrientes selecionados a partir
+                // da exigência da categoria escolhida.
+                setState((s) => {
+                  const next = { ...s.nutrientLimits };
+                  for (const wid of s.nutrients) {
+                    const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
+                    const v = req.nutrientes?.[key];
+                    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+                      next[wid] = { min: String(v), max: next[wid]?.max ?? "" };
+                    }
+                  }
+                  return { ...s, nutrientLimits: next };
+                });
+              }}
               ingredients={state.ingredients}
               nutrients={state.nutrients}
               ingredientLimits={state.ingredientLimits}
