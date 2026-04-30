@@ -285,6 +285,22 @@ function FormularRacaoWizard() {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
 
+  useEffect(() => {
+    setReqCategoria((current) => {
+      if (!state.specie) return "";
+      const categories = getRequirementCategories(requirementsList, state.specie);
+      if (current && categories.some((cat) => norm(cat) === norm(current))) return current;
+      return categories[0] ?? "";
+    });
+  }, [requirementsList, state.specie]);
+
+  useEffect(() => {
+    if (!reqCategoria) return;
+    const req = findRequirementForCategory(requirementsList, state.specie, reqCategoria);
+    if (!req) return;
+    setState((s) => applyRequirementMinimums(s, req));
+  }, [requirementsList, reqCategoria, state.specie, state.nutrients]);
+
   if (loading || !user) {
     return <LogoLoader label="Preparando o formulador..." />;
   }
