@@ -423,25 +423,9 @@ function FormularRacaoWizard() {
               categoria={reqCategoria}
               onCategoriaChange={(cat) => {
                 setReqCategoria(cat);
-                const req = requirementsList.find(
-                  (r) =>
-                    norm(r.categoria) === norm(cat) &&
-                    requirementMatchesSpecie(r.especie, state.specie),
-                );
+                const req = findRequirementForCategory(requirementsList, state.specie, cat);
                 if (!req) return;
-                // Pré-preenche os mínimos dos nutrientes selecionados a partir
-                // da exigência da categoria escolhida.
-                setState((s) => {
-                  const next = { ...s.nutrientLimits };
-                  for (const wid of s.nutrients) {
-                    const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
-                    const v = req.nutrientes?.[key];
-                    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-                      next[wid] = { min: String(v), max: next[wid]?.max ?? "" };
-                    }
-                  }
-                  return { ...s, nutrientLimits: next };
-                });
+                setState((s) => applyRequirementMinimums(s, req));
               }}
               ingredients={state.ingredients}
               nutrients={state.nutrients}
