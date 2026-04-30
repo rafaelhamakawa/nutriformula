@@ -139,12 +139,24 @@ function specieMatchers(specie: Specie | null): string[] {
   if (!specie) return [];
   const labels = SPECIES.filter((s) => s.value === specie).map((s) => s.label);
   const groups = SPECIES.filter((s) => s.value === specie).map((s) => s.group);
-  return Array.from(new Set([SPECIE_TO_REQ_ESPECIE[specie], ...labels, ...groups, specie])).map(norm);
+  const aliases: Partial<Record<Specie, string[]>> = {
+    frango: ["Frangos", "Frango de corte", "Frangos de corte", "Aves de corte", "Aves/Frangos"],
+    poedeira: ["Poedeiras", "Galinhas poedeiras", "Aves de postura"],
+    codorna: ["Codornas", "Aves/Codornas"],
+    calopsita: ["Calopsitas", "Aves/Calopsitas"],
+    suinos: ["Suíno", "Suinos"],
+    "bovino-corte": ["Bovino", "Bovinos de corte"],
+    caes: ["Cão", "Cães", "Caes", "Caninos"],
+    gatos: ["Gato", "Felinos"],
+    jabuti: ["Jabutis", "Quelônios", "Repteis", "Répteis"],
+  };
+  return Array.from(new Set([SPECIE_TO_REQ_ESPECIE[specie], ...labels, ...groups, specie, ...(aliases[specie] ?? [])])).map(norm);
 }
 
 function requirementMatchesSpecie(reqEspecie: string, specie: Specie | null): boolean {
   const matchers = specieMatchers(specie);
-  return matchers.includes(norm(reqEspecie));
+  const normalized = norm(reqEspecie);
+  return matchers.some((m) => normalized === m || normalized.includes(m) || m.includes(normalized));
 }
 
 const NUTRIENTS = [
