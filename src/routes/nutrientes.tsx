@@ -25,7 +25,37 @@ import {
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { Atom, Pencil, Plus, Search } from "lucide-react";
+import { Pencil, Plus, Search } from "lucide-react";
+import iconNutrientes from "@/assets/dashboard/nutrientes.png";
+
+const DEFAULT_NUTRIENTS: Omit<Nutrient, "id">[] = [
+  { nome: "Proteína Bruta", unidade: "%", categoria: "Macronutriente", descricao: "" },
+  { nome: "Energia Digestível", unidade: "kcal/kg", categoria: "Energia", descricao: "" },
+  { nome: "Gordura", unidade: "%", categoria: "Macronutriente", descricao: "" },
+  { nome: "Ac. Linoléico", unidade: "%", categoria: "Ácido graxo", descricao: "" },
+  { nome: "Amido", unidade: "%", categoria: "Carboidrato", descricao: "" },
+  { nome: "Fibra bruta", unidade: "%", categoria: "Fibra", descricao: "" },
+  { nome: "FDN", unidade: "%", categoria: "Fibra", descricao: "Fibra em detergente neutro" },
+  { nome: "FDA", unidade: "%", categoria: "Fibra", descricao: "Fibra em detergente ácido" },
+  { nome: "Lisina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Met. + Cist. Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Treonina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Triptofano Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Isoleucina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Valina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Leucina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Arginina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Fen. + Tir. Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Histidina Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Glutamato Digestível", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Fósforo Digestível", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Cálcio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Potássio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Sódio", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Cloro", unidade: "%", categoria: "Mineral", descricao: "" },
+  { nome: "Glutamina", unidade: "%", categoria: "Aminoácido", descricao: "" },
+  { nome: "Alanina", unidade: "%", categoria: "Aminoácido", descricao: "" },
+];
 
 export const Route = createFileRoute("/nutrientes")({
   head: () => ({ meta: [{ title: "Nutrientes — NutriForm" }] }),
