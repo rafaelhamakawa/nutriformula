@@ -31,14 +31,18 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "NutriForm" },
+      { name: "description", content: "Formulador e gestor de nutrição animal" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "NutriForm" },
+      { property: "og:description", content: "Formulador e gestor de nutrição animal" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "NutriForm" },
+      { name: "twitter:description", content: "Formulador e gestor de nutrição animal" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/DKSy1UnAAefX0n3o02w3q1EgBEr1/social-images/social-1777547912409-logo_fundo_branco.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/DKSy1UnAAefX0n3o02w3q1EgBEr1/social-images/social-1777547912409-logo_fundo_branco.webp" },
     ],
     links: [
       {
