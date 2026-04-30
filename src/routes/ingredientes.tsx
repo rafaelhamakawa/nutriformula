@@ -94,7 +94,32 @@ const emptyForm = (): Omit<Ingredient, "id"> => ({
 function IngredientesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useLocalStorage<Ingredient[]>("nf:ingredients", []);
+  const [items, setItems] = useSupabaseCollection<Ingredient, Ingredient & { user_id: string }>(
+    "ingredients",
+    (it) => ({
+      nome: it.nome,
+      proteina: it.proteina,
+      energia: it.energia,
+      lisina: it.lisina,
+      metionina: it.metionina,
+      calcio: it.calcio,
+      fosforo: it.fosforo,
+      fibra: it.fibra,
+      preco: it.preco,
+    }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      proteina: Number(row.proteina) || 0,
+      energia: Number(row.energia) || 0,
+      lisina: Number(row.lisina) || 0,
+      metionina: Number(row.metionina) || 0,
+      calcio: Number(row.calcio) || 0,
+      fosforo: Number(row.fosforo) || 0,
+      fibra: Number(row.fibra) || 0,
+      preco: Number(row.preco) || 0,
+    }),
+  );
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
