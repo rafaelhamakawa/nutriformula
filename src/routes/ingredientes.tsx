@@ -35,10 +35,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
+import { PageHeader } from "@/components/page-header";
+import iconIngredientes from "@/assets/dashboard/ingredientes.png";
 import {
   AlertCircle,
-  Beaker,
   Download,
   Pencil,
   Plus,
@@ -93,7 +94,32 @@ const emptyForm = (): Omit<Ingredient, "id"> => ({
 function IngredientesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useLocalStorage<Ingredient[]>("nf:ingredients", []);
+  const [items, setItems] = useSupabaseCollection<Ingredient, Ingredient & { user_id: string }>(
+    "ingredients",
+    (it) => ({
+      nome: it.nome,
+      proteina: it.proteina,
+      energia: it.energia,
+      lisina: it.lisina,
+      metionina: it.metionina,
+      calcio: it.calcio,
+      fosforo: it.fosforo,
+      fibra: it.fibra,
+      preco: it.preco,
+    }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      proteina: Number(row.proteina) || 0,
+      energia: Number(row.energia) || 0,
+      lisina: Number(row.lisina) || 0,
+      metionina: Number(row.metionina) || 0,
+      calcio: Number(row.calcio) || 0,
+      fosforo: Number(row.fosforo) || 0,
+      fibra: Number(row.fibra) || 0,
+      preco: Number(row.preco) || 0,
+    }),
+  );
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
@@ -189,18 +215,11 @@ function IngredientesPage() {
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <AppHeader />
       <main className="container mx-auto px-6 py-8 md:py-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Beaker className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">Ingredientes</h1>
-        </div>
-        <p className="text-muted-foreground mb-6">
-          Cadastre, edite e importe ingredientes via CSV.
-        </p>
+        <PageHeader
+          icon={iconIngredientes}
+          title="Ingredientes"
+          description="Cadastre, edite e importe ingredientes via CSV."
+        />
 
         <Card className="p-4 md:p-6 bg-card/60 backdrop-blur border-border/50 mb-6">
           <div className="flex flex-wrap gap-3 items-center justify-between">

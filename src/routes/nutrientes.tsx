@@ -23,8 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
 import { Pencil, Plus, Search } from "lucide-react";
 import iconNutrientes from "@/assets/dashboard/nutrientes.png";
 
@@ -80,7 +81,22 @@ const empty = (): Omit<Nutrient, "id"> => ({
 function NutrientesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useLocalStorage<Nutrient[]>("nf:nutrients", []);
+  const [items, setItems] = useSupabaseCollection<Nutrient, Nutrient & { user_id: string }>(
+    "nutrients",
+    (it) => ({
+      nome: it.nome,
+      unidade: it.unidade,
+      categoria: it.categoria,
+      descricao: it.descricao,
+    }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      unidade: row.unidade ?? "",
+      categoria: row.categoria ?? "",
+      descricao: row.descricao ?? "",
+    }),
+  );
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Nutrient | null>(null);
@@ -143,15 +159,11 @@ function NutrientesPage() {
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <AppHeader />
       <main className="container mx-auto px-6 py-8 md:py-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl overflow-hidden flex items-center justify-center">
-            <img src={iconNutrientes} alt="Nutrientes" className="h-full w-full object-contain" />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">Nutrientes</h1>
-        </div>
-        <p className="text-muted-foreground mb-6">
-          Cadastre e edite nutrientes utilizados nas formulações.
-        </p>
+        <PageHeader
+          icon={iconNutrientes}
+          title="Nutrientes"
+          description="Cadastre e edite nutrientes utilizados nas formulações."
+        />
 
         <Card className="p-4 md:p-6 bg-card/60 backdrop-blur border-border/50 mb-6">
           <div className="flex flex-wrap gap-3 items-center justify-between">

@@ -46,8 +46,10 @@ import {
 } from "@/components/ui/tooltip";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { Calculator, HeartPulse, HelpCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
+import { PageHeader } from "@/components/page-header";
+import iconClinica from "@/assets/dashboard/clinica.png";
+import { Calculator, HelpCircle, Pencil, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/nutricao-clinica")({
   head: () => ({ meta: [{ title: "Nutrição Clínica — NutriForm" }] }),
@@ -204,7 +206,44 @@ function FieldHelp({ text }: { text: string }) {
 function NutricaoClinicaPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [patients, setPatients] = useLocalStorage<Patient[]>("nf:patients", []);
+  const [patients, setPatients] = useSupabaseCollection<Patient, Patient & { user_id: string }>(
+    "patients",
+    (p) => ({
+      nome: p.nome,
+      especie: p.especie,
+      raca: p.raca,
+      idade: p.idade,
+      sexo: p.sexo,
+      peso: p.peso,
+      condicao_corporal: p.condicaoCorporal,
+      comorbidades: p.comorbidades,
+      observacoes: p.observacoes,
+      idade_anos: p.idadeAnos ?? null,
+      circ_cabeca: p.circCabeca ?? null,
+      circ_torax: p.circTorax ?? null,
+      circ_pelve: p.circPelve ?? null,
+      comp_membro_ant: p.compMembroAnt ?? null,
+      comp_membro_pelv: p.compMembroPelv ?? null,
+    }),
+    (row: any) => ({
+      id: row.id,
+      nome: row.nome ?? "",
+      especie: row.especie ?? "",
+      raca: row.raca ?? "",
+      idade: row.idade ?? "",
+      sexo: (row.sexo ?? "") as Patient["sexo"],
+      peso: Number(row.peso) || 0,
+      condicaoCorporal: Number(row.condicao_corporal) || 0,
+      comorbidades: row.comorbidades ?? "",
+      observacoes: row.observacoes ?? "",
+      idadeAnos: row.idade_anos != null ? Number(row.idade_anos) : undefined,
+      circCabeca: row.circ_cabeca != null ? Number(row.circ_cabeca) : undefined,
+      circTorax: row.circ_torax != null ? Number(row.circ_torax) : undefined,
+      circPelve: row.circ_pelve != null ? Number(row.circ_pelve) : undefined,
+      compMembroAnt: row.comp_membro_ant != null ? Number(row.comp_membro_ant) : undefined,
+      compMembroPelv: row.comp_membro_pelv != null ? Number(row.comp_membro_pelv) : undefined,
+    }),
+  );
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState(empty());
@@ -292,25 +331,16 @@ function NutricaoClinicaPage() {
       <div className="min-h-screen bg-background">
         <AppHeader />
         <main className="container mx-auto px-6 py-10">
-          <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div
-                className="rounded-lg p-3"
-                style={{ background: "var(--gradient-primary)" }}
-              >
-                <HeartPulse className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">Nutrição Clínica</h1>
-                <p className="text-sm text-muted-foreground">
-                  Cadastro de pacientes e cálculo de dieta
-                </p>
-              </div>
-            </div>
-            <Button onClick={openNew}>
-              <Plus className="h-4 w-4 mr-2" /> Novo paciente
-            </Button>
-          </div>
+          <PageHeader
+            icon={iconClinica}
+            title="Nutrição Clínica"
+            description="Cadastro de pacientes e cálculo de dieta."
+            right={
+              <Button onClick={openNew}>
+                <Plus className="h-4 w-4 mr-2" /> Novo paciente
+              </Button>
+            }
+          />
 
           <Card className="bg-card/40 backdrop-blur">
             <Table>
