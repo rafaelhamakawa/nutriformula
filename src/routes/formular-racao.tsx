@@ -704,9 +704,9 @@ function StepRestrictions({
   const categorias = useMemo(
     () =>
       requirements
-        .filter((r) => r.especie === especieReq && r.categoria.trim().length > 0)
+        .filter((r) => requirementMatchesSpecie(r.especie, specie) && r.categoria.trim().length > 0)
         .map((r) => r.categoria),
-    [requirements, especieReq],
+    [requirements, specie],
   );
   const categoriasUnicas = Array.from(new Set(categorias));
 
