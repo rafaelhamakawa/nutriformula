@@ -44,12 +44,18 @@ export function PlaceholderPage({ icon: Icon, image, title, description }: Place
 
       <main className="container mx-auto px-6 py-16">
         <Card className="max-w-2xl mx-auto p-10 text-center bg-card/60 backdrop-blur border-border/50">
-          <div
-            className="h-20 w-20 mx-auto rounded-2xl flex items-center justify-center mb-6"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Icon className="h-10 w-10 text-primary-foreground" />
-          </div>
+          {image ? (
+            <div className="h-32 w-32 mx-auto mb-6 flex items-center justify-center">
+              <img src={image} alt={title} className="h-full w-full object-contain" />
+            </div>
+          ) : Icon ? (
+            <div
+              className="h-20 w-20 mx-auto rounded-2xl flex items-center justify-center mb-6"
+              style={{ background: "var(--gradient-primary)" }}
+            >
+              <Icon className="h-10 w-10 text-primary-foreground" />
+            </div>
+          ) : null}
           <h1 className="text-3xl md:text-4xl font-bold mb-3">{title}</h1>
           <p className="text-muted-foreground text-lg">{description}</p>
         </Card>
