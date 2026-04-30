@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { LogOut } from "lucide-react";
+import { useUserRole } from "@/hooks/use-user-role";
+import { LogOut, ShieldCheck } from "lucide-react";
 import logo from "@/assets/logo.png";
 import iconFormular from "@/assets/dashboard/formular.png";
 import iconNatural from "@/assets/dashboard/natural.png";
@@ -29,6 +30,7 @@ const cards: { image: string; title: string; desc: string; to: string }[] = [
 
 function DashboardPage() {
   const { user, loading, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,6 +56,13 @@ function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm">
+                  <ShieldCheck className="h-4 w-4 mr-2" /> Admin
+                </Button>
+              </Link>
+            )}
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" /> Sair
             </Button>
