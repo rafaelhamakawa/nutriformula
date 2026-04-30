@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -53,72 +52,93 @@ export const Route = createFileRoute("/ingredientes")({
   component: IngredientesPage,
 });
 
+// Lista de nutrientes (colunas) — mesma ordem solicitada pelo usuário.
+export const NUTRIENT_COLUMNS = [
+  { key: "proteina_bruta", label: "Proteína Bruta", unit: "%" },
+  { key: "energia_metabolizavel", label: "Energia Metabolizável", unit: "kcal/kg" },
+  { key: "energia_digestivel", label: "Energia Digestível", unit: "kcal/kg" },
+  { key: "gordura", label: "Gordura", unit: "%" },
+  { key: "ac_linoleico", label: "Ac. Linoléico", unit: "%" },
+  { key: "amido", label: "Amido", unit: "%" },
+  { key: "fibra_bruta", label: "Fibra bruta", unit: "%" },
+  { key: "fdn", label: "FDN", unit: "%" },
+  { key: "fda", label: "FDA", unit: "%" },
+  { key: "lisina_dig", label: "Lisina Digestível", unit: "%" },
+  { key: "met_cist_dig", label: "Met. + Cist. Digestível", unit: "%" },
+  { key: "treonina_dig", label: "Treonina Digestível", unit: "%" },
+  { key: "triptofano_dig", label: "Triptofano Digestível", unit: "%" },
+  { key: "isoleucina_dig", label: "Isoleucina Digestível", unit: "%" },
+  { key: "valina_dig", label: "Valina Digestível", unit: "%" },
+  { key: "leucina_dig", label: "Leucina Digestível", unit: "%" },
+  { key: "arginina_dig", label: "Arginina Digestível", unit: "%" },
+  { key: "fen_tir_dig", label: "Fen. + Tir. Digestível", unit: "%" },
+  { key: "histidina_dig", label: "Histidina Digestível", unit: "%" },
+  { key: "glutamato_dig", label: "Glutamato Digestível", unit: "%" },
+  { key: "fosforo_dig", label: "Fósforo Digestível", unit: "%" },
+  { key: "calcio", label: "Cálcio", unit: "%" },
+  { key: "potassio", label: "Potássio", unit: "%" },
+  { key: "sodio", label: "Sódio", unit: "%" },
+  { key: "cloro", label: "Cloro", unit: "%" },
+  { key: "glutamina", label: "Glutamina", unit: "%" },
+  { key: "alanina", label: "Alanina", unit: "%" },
+] as const;
+
+type NutrientKey = typeof NUTRIENT_COLUMNS[number]["key"];
+
 interface Ingredient {
   id: string;
   nome: string;
-  proteina: number;
-  energia: number;
-  lisina: number;
-  metionina: number;
-  calcio: number;
-  fosforo: number;
-  fibra: number;
   preco: number;
+  nutrientes: Record<NutrientKey, number>;
 }
 
-const NUMERIC_FIELDS = [
-  "proteina",
-  "energia",
-  "lisina",
-  "metionina",
-  "calcio",
-  "fosforo",
-  "fibra",
-  "preco",
-] as const;
-
-const CSV_HEADERS = ["nome", ...NUMERIC_FIELDS] as const;
+const emptyNutrients = (): Record<NutrientKey, number> =>
+  NUTRIENT_COLUMNS.reduce((acc, c) => {
+    acc[c.key] = 0;
+    return acc;
+  }, {} as Record<NutrientKey, number>);
 
 const emptyForm = (): Omit<Ingredient, "id"> => ({
   nome: "",
-  proteina: 0,
-  energia: 0,
-  lisina: 0,
-  metionina: 0,
-  calcio: 0,
-  fosforo: 0,
-  fibra: 0,
   preco: 0,
+  nutrientes: emptyNutrients(),
 });
+
+const CSV_HEADERS = ["nome", "preco", ...NUTRIENT_COLUMNS.map((c) => c.key)];
 
 function IngredientesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useSupabaseCollection<Ingredient, Ingredient & { user_id: string }>(
+  const [items, setItems] = useSupabaseCollection<
+    Ingredient,
+    {
+      id: string;
+      user_id: string;
+      nome: string;
+      preco: number | null;
+      nutrientes: Record<string, number> | null;
+    }
+  >(
     "ingredients",
     (it) => ({
       nome: it.nome,
-      proteina: it.proteina,
-      energia: it.energia,
-      lisina: it.lisina,
-      metionina: it.metionina,
-      calcio: it.calcio,
-      fosforo: it.fosforo,
-      fibra: it.fibra,
       preco: it.preco,
+      nutrientes: it.nutrientes,
     }),
-    (row) => ({
-      id: row.id,
-      nome: row.nome,
-      proteina: Number(row.proteina) || 0,
-      energia: Number(row.energia) || 0,
-      lisina: Number(row.lisina) || 0,
-      metionina: Number(row.metionina) || 0,
-      calcio: Number(row.calcio) || 0,
-      fosforo: Number(row.fosforo) || 0,
-      fibra: Number(row.fibra) || 0,
-      preco: Number(row.preco) || 0,
-    }),
+    (row) => {
+      const base = emptyNutrients();
+      const incoming = row.nutrientes ?? {};
+      for (const c of NUTRIENT_COLUMNS) {
+        const v = Number((incoming as Record<string, unknown>)[c.key]);
+        base[c.key] = Number.isFinite(v) ? v : 0;
+      }
+      return {
+        id: row.id,
+        nome: row.nome,
+        preco: Number(row.preco) || 0,
+        nutrientes: base,
+      };
+    },
   );
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -149,8 +169,7 @@ function IngredientesPage() {
 
   const openEdit = (it: Ingredient) => {
     setEditing(it);
-    const { id: _id, ...rest } = it;
-    setForm(rest);
+    setForm({ nome: it.nome, preco: it.preco, nutrientes: { ...it.nutrientes } });
     setOpen(true);
   };
 
@@ -177,7 +196,7 @@ function IngredientesPage() {
   };
 
   const downloadTemplate = () => {
-    const sample = `${CSV_HEADERS.join(",")}\nMilho moído,8.5,3350,0.25,0.18,0.03,0.28,2.5,1.20\nFarelo de soja,46,2250,2.85,0.65,0.30,0.65,5.5,2.30`;
+    const sample = `${CSV_HEADERS.join(",")}\nMilho moído,1.20,${NUTRIENT_COLUMNS.map(() => "0").join(",")}`;
     const blob = new Blob([sample], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -275,38 +294,45 @@ function IngredientesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="text-right">Proteína</TableHead>
-                  <TableHead className="text-right">Energia</TableHead>
-                  <TableHead className="text-right">Lisina</TableHead>
-                  <TableHead className="text-right">Metionina</TableHead>
-                  <TableHead className="text-right">Cálcio</TableHead>
-                  <TableHead className="text-right">Fósforo</TableHead>
-                  <TableHead className="text-right">Fibra</TableHead>
-                  <TableHead className="text-right">Preço</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">Nome</TableHead>
+                  {NUTRIENT_COLUMNS.map((c) => (
+                    <TableHead key={c.key} className="text-right whitespace-nowrap">
+                      {c.label}
+                      <span className="block text-[10px] font-normal text-muted-foreground">
+                        {c.unit}
+                      </span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right whitespace-nowrap">
+                    Preço
+                    <span className="block text-[10px] font-normal text-muted-foreground">R$/kg</span>
+                  </TableHead>
+                  <TableHead className="text-right sticky right-0 bg-card z-10">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
+                    <TableCell
+                      colSpan={NUTRIENT_COLUMNS.length + 3}
+                      className="text-center text-muted-foreground py-10"
+                    >
                       Nenhum ingrediente cadastrado.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((it) => (
                     <TableRow key={it.id}>
-                      <TableCell className="font-medium">{it.nome}</TableCell>
-                      <TableCell className="text-right">{it.proteina}</TableCell>
-                      <TableCell className="text-right">{it.energia}</TableCell>
-                      <TableCell className="text-right">{it.lisina}</TableCell>
-                      <TableCell className="text-right">{it.metionina}</TableCell>
-                      <TableCell className="text-right">{it.calcio}</TableCell>
-                      <TableCell className="text-right">{it.fosforo}</TableCell>
-                      <TableCell className="text-right">{it.fibra}</TableCell>
-                      <TableCell className="text-right">{it.preco}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="font-medium sticky left-0 bg-card z-10">
+                        {it.nome}
+                      </TableCell>
+                      {NUTRIENT_COLUMNS.map((c) => (
+                        <TableCell key={c.key} className="text-right tabular-nums">
+                          {it.nutrientes[c.key] ?? 0}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right tabular-nums">{it.preco}</TableCell>
+                      <TableCell className="text-right sticky right-0 bg-card z-10">
                         <div className="flex justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEdit(it)}>
                             <Pencil className="h-4 w-4" />
@@ -330,7 +356,7 @@ function IngredientesPage() {
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar ingrediente" : "Novo ingrediente"}</DialogTitle>
           </DialogHeader>
@@ -344,22 +370,43 @@ function IngredientesPage() {
                 maxLength={100}
               />
             </div>
-            {NUMERIC_FIELDS.map((f) => (
-              <div key={f} className="space-y-1.5">
-                <Label htmlFor={f} className="capitalize">
-                  {f}
-                </Label>
-                <Input
-                  id={f}
-                  type="number"
-                  step="0.01"
-                  value={form[f]}
-                  onChange={(e) =>
-                    setForm({ ...form, [f]: Number(e.target.value) || 0 })
-                  }
-                />
+            <div className="space-y-1.5">
+              <Label htmlFor="preco">Preço (R$/kg)</Label>
+              <Input
+                id="preco"
+                type="number"
+                step="0.01"
+                value={form.preco}
+                onChange={(e) => setForm({ ...form, preco: Number(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="sm:col-span-2 pt-2">
+              <h3 className="text-sm font-semibold mb-2">Composição nutricional</h3>
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                {NUTRIENT_COLUMNS.map((c) => (
+                  <div key={c.key} className="space-y-1.5">
+                    <Label htmlFor={c.key} className="text-xs">
+                      {c.label} <span className="text-muted-foreground">({c.unit})</span>
+                    </Label>
+                    <Input
+                      id={c.key}
+                      type="number"
+                      step="0.01"
+                      value={form.nutrientes[c.key]}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          nutrientes: {
+                            ...form.nutrientes,
+                            [c.key]: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
@@ -406,7 +453,8 @@ function parseCsv(text: string): {
   }
 
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const missing = CSV_HEADERS.filter((h) => !header.includes(h));
+  const required = ["nome"];
+  const missing = required.filter((h) => !header.includes(h));
   if (missing.length) {
     return {
       rows,
@@ -426,22 +474,22 @@ function parseCsv(text: string): {
       errors.push(`Linha ${i + 1}: nome vazio.`);
       continue;
     }
-    const row: Omit<Ingredient, "id"> = {
-      nome,
-      proteina: 0, energia: 0, lisina: 0, metionina: 0,
-      calcio: 0, fosforo: 0, fibra: 0, preco: 0,
-    };
+    const nutrientes = emptyNutrients();
     let bad = false;
-    for (const f of NUMERIC_FIELDS) {
-      const v = Number(get(f));
+    for (const c of NUTRIENT_COLUMNS) {
+      if (!header.includes(c.key)) continue;
+      const v = Number(get(c.key));
       if (Number.isNaN(v)) {
-        errors.push(`Linha ${i + 1}: "${f}" inválido.`);
+        errors.push(`Linha ${i + 1}: "${c.key}" inválido.`);
         bad = true;
         break;
       }
-      row[f] = v;
+      nutrientes[c.key] = v;
     }
-    if (!bad) rows.push(row);
+    if (bad) continue;
+    const precoRaw = header.includes("preco") ? Number(get("preco")) : 0;
+    const preco = Number.isFinite(precoRaw) ? precoRaw : 0;
+    rows.push({ nome, preco, nutrientes });
   }
 
   return { rows, errors };
