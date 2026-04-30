@@ -14,7 +14,7 @@ interface PlaceholderPageProps {
   description: string;
 }
 
-export function PlaceholderPage({ icon: Icon, title, description }: PlaceholderPageProps) {
+export function PlaceholderPage({ icon: Icon, image, title, description }: PlaceholderPageProps) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
