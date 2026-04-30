@@ -683,26 +683,188 @@ function StepCalcType({
   );
 }
 
+// Mapeia chaves "amigáveis" do wizard para chaves reais dos nutrientes do banco.
+const WIZARD_TO_NUTRIENT_KEY: Record<string, string> = {
+  proteina: "proteina_bruta",
+  energia: "energia_metabolizavel",
+  lisina: "lisina_dig",
+  metionina: "met_cist_dig",
+  calcio: "calcio",
+  fosforo: "fosforo_dig",
+};
+
 function StepResult({ state }: { state: WizardState }) {
+  const [items] = useSupabaseCollection<
+    {
+      id: string;
+      nome: string;
+      preco: number;
+      nutrientes: Record<string, number>;
+    },
+    {
+      id: string;
+      user_id: string;
+      nome: string;
+      preco: number | null;
+      nutrientes: Record<string, number> | null;
+    }
+  >(
+    "ingredients",
+    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      preco: Number(row.preco) || 0,
+      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
+    }),
+  );
+
+  const [resultado, setResultado] = useState<ResultadoFormulacao | null>(null);
+  const [calculando, setCalculando] = useState(false);
+
+  const podeAuto = state.calcType === "automatico";
+
+  const executar = () => {
+    setCalculando(true);
+    try {
+      // Casa ingredientes selecionados (por nome) com os cadastrados.
+      const selMap = new Map(items.map((i) => [i.nome.toLowerCase(), i]));
+      const ingredientes: IngredienteEntrada[] = state.ingredients.map((nome) => {
+        const found = selMap.get(nome.toLowerCase());
+        const limites = state.ingredientLimits[nome] ?? { min: "", max: "" };
+        const min = limites.min !== "" ? Number(limites.min) : undefined;
+        const max = limites.max !== "" ? Number(limites.max) : undefined;
+        return {
+          id: nome,
+          nome,
+          preco: found?.preco ?? 0,
+          nutrientes: found?.nutrientes ?? {},
+          min: Number.isFinite(min) ? min : undefined,
+          max: Number.isFinite(max) ? max : undefined,
+        };
+      });
+
+      const exigencias: ExigenciaNutriente[] = state.nutrients.map((wid) => {
+        const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
+        const label = NUTRIENTS.find((n) => n.id === wid)?.label ?? key;
+        const r = state.nutrientLimits[wid] ?? { min: "", max: "" };
+        const min = r.min !== "" ? Number(r.min) : undefined;
+        const max = r.max !== "" ? Number(r.max) : undefined;
+        return {
+          key,
+          label,
+          min: Number.isFinite(min) ? min : undefined,
+          max: Number.isFinite(max) ? max : undefined,
+        };
+      });
+
+      const r = calcularFormulaAutomatica(ingredientes, exigencias);
+      setResultado(r);
+    } finally {
+      setCalculando(false);
+    }
+  };
+
   return (
-    <div className="text-center py-6">
-      <div
-        className="h-16 w-16 mx-auto rounded-2xl flex items-center justify-center mb-4"
-        style={{ background: "var(--gradient-primary)" }}
-      >
-        <Sparkles className="h-8 w-8 text-primary-foreground" />
+    <div className="py-2">
+      <div className="text-center mb-6">
+        <div
+          className="h-16 w-16 mx-auto rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: "var(--gradient-primary)" }}
+        >
+          <Sparkles className="h-8 w-8 text-primary-foreground" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Resultado da formulação</h2>
+        <p className="text-muted-foreground">
+          Revise as escolhas e calcule a fórmula otimizada.
+        </p>
       </div>
-      <h2 className="text-2xl font-bold mb-2">Formulação pronta para calcular</h2>
-      <p className="text-muted-foreground mb-6">
-        Em breve: cálculo da formulação balanceada com base nas suas escolhas.
-      </p>
-      <div className="text-left max-w-md mx-auto space-y-2 text-sm bg-card/40 border border-border rounded-lg p-4">
-        <Row label="Espécie" value={state.specie ?? "—"} />
-        <Row label="Tipo" value={state.feedType ?? "—"} />
-        <Row label="Ingredientes" value={`${state.ingredients.length} selecionado(s)`} />
-        <Row label="Nutrientes" value={`${state.nutrients.length} selecionado(s)`} />
-        <Row label="Cálculo" value={state.calcType ?? "—"} />
+
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        <div className="text-left space-y-2 text-sm bg-card/40 border border-border rounded-lg p-4">
+          <Row label="Espécie" value={state.specie ?? "—"} />
+          <Row label="Tipo" value={state.feedType ?? "—"} />
+          <Row label="Ingredientes" value={`${state.ingredients.length} selecionado(s)`} />
+          <Row label="Nutrientes" value={`${state.nutrients.length} selecionado(s)`} />
+          <Row label="Cálculo" value={state.calcType ?? "—"} />
+        </div>
+
+        <div className="flex flex-col gap-3 items-stretch justify-center bg-card/40 border border-border rounded-lg p-4">
+          <Button
+            onClick={executar}
+            disabled={!podeAuto || calculando || state.ingredients.length === 0}
+            className="w-full"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {calculando ? "Calculando..." : "Calcular automaticamente"}
+          </Button>
+          {!podeAuto && (
+            <p className="text-xs text-muted-foreground">
+              Selecione "Automático" na etapa de cálculo para usar o otimizador.
+            </p>
+          )}
+        </div>
       </div>
+
+      {resultado?.status === "infeasible" && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-4 text-sm">
+          {resultado.mensagem}
+        </div>
+      )}
+
+      {resultado?.status === "ok" && (
+        <div className="space-y-5">
+          <div className="bg-card/40 border border-border rounded-lg p-4">
+            <h3 className="font-semibold mb-3">Composição da fórmula</h3>
+            <div className="space-y-2">
+              {resultado.composicao
+                .slice()
+                .sort((a, b) => b.percentual - a.percentual)
+                .map((c) => (
+                  <div key={c.id} className="flex justify-between text-sm">
+                    <span>{c.nome}</span>
+                    <span className="font-medium">{c.percentual.toFixed(2)}%</span>
+                  </div>
+                ))}
+            </div>
+            <div className="border-t border-border mt-3 pt-3 flex justify-between text-sm font-semibold">
+              <span>Custo final</span>
+              <span>R$ {resultado.custo.toFixed(4)} / kg</span>
+            </div>
+          </div>
+
+          <div className="bg-card/40 border border-border rounded-lg p-4">
+            <h3 className="font-semibold mb-3">Composição nutricional</h3>
+            <div className="space-y-2 text-sm">
+              {resultado.nutrientes.map((n) => (
+                <div key={n.key} className="flex justify-between">
+                  <span className={n.atendido ? "" : "text-destructive"}>
+                    {n.label ?? n.key}
+                    {typeof n.min === "number" && (
+                      <span className="text-muted-foreground"> (min {n.min})</span>
+                    )}
+                    {typeof n.max === "number" && (
+                      <span className="text-muted-foreground"> (max {n.max})</span>
+                    )}
+                  </span>
+                  <span className="font-medium">{n.valor.toFixed(3)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {resultado.alertas.length > 0 && (
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm">
+              <div className="font-semibold mb-2">Alertas</div>
+              <ul className="list-disc pl-5 space-y-1">
+                {resultado.alertas.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
