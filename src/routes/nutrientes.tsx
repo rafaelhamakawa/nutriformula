@@ -81,7 +81,22 @@ const empty = (): Omit<Nutrient, "id"> => ({
 function NutrientesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useLocalStorage<Nutrient[]>("nf:nutrients", []);
+  const [items, setItems] = useSupabaseCollection<Nutrient, Nutrient & { user_id: string }>(
+    "nutrients",
+    (it) => ({
+      nome: it.nome,
+      unidade: it.unidade,
+      categoria: it.categoria,
+      descricao: it.descricao,
+    }),
+    (row) => ({
+      id: row.id,
+      nome: row.nome,
+      unidade: row.unidade ?? "",
+      categoria: row.categoria ?? "",
+      descricao: row.descricao ?? "",
+    }),
+  );
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Nutrient | null>(null);
