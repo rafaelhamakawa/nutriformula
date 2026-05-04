@@ -311,6 +311,11 @@ function ExigenciasPage() {
               <Button variant="outline" onClick={exportCsv}>
                 <Download className="h-4 w-4 mr-2" /> Exportar CSV
               </Button>
+              {selected.size > 0 && (
+                <Button variant="destructive" onClick={() => setBulkDelete(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selected.size})
+                </Button>
+              )}
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" /> Nova exigência
               </Button>
