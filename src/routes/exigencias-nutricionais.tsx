@@ -340,8 +340,15 @@ function ExigenciasPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 min-w-[140px]">Espécie</TableHead>
-                  <TableHead className="sticky left-[140px] bg-card z-10 min-w-[180px]">Categoria</TableHead>
+                  <TableHead className="sticky left-0 bg-card z-10 w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
+                  <TableHead className="sticky left-10 bg-card z-10 min-w-[140px]">Espécie</TableHead>
+                  <TableHead className="sticky left-[150px] bg-card z-10 min-w-[180px]">Categoria</TableHead>
                   {NUTRIENT_COLUMNS.map((c) => (
                     <TableHead key={c.key} className="whitespace-nowrap text-right">
                       {c.label}
@@ -354,15 +361,22 @@ function ExigenciasPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={NUTRIENT_COLUMNS.length + 3} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={NUTRIENT_COLUMNS.length + 4} className="text-center text-muted-foreground py-10">
                       Nenhuma exigência cadastrada.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((it) => (
-                    <TableRow key={it.id}>
-                      <TableCell className="sticky left-0 bg-card z-10 font-medium">{it.especie}</TableCell>
-                      <TableCell className="sticky left-[140px] bg-card z-10">{it.categoria}</TableCell>
+                    <TableRow key={it.id} data-state={selected.has(it.id) ? "selected" : undefined}>
+                      <TableCell className="sticky left-0 bg-card z-10">
+                        <Checkbox
+                          checked={selected.has(it.id)}
+                          onCheckedChange={() => toggleOne(it.id)}
+                          aria-label={`Selecionar ${it.especie}`}
+                        />
+                      </TableCell>
+                      <TableCell className="sticky left-10 bg-card z-10 font-medium">{it.especie}</TableCell>
+                      <TableCell className="sticky left-[150px] bg-card z-10">{it.categoria}</TableCell>
                       {NUTRIENT_COLUMNS.map((c) => (
                         <TableCell key={c.key} className="text-right tabular-nums">
                           {it.nutrientes[c.key] || 0}
