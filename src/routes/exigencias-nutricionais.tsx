@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AppHeader } from "@/components/app-header";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
@@ -110,6 +111,8 @@ function ExigenciasPage() {
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState<Omit<Requirement, "id">>(empty);
   const [toDelete, setToDelete] = useState<Requirement | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -168,6 +171,26 @@ function ExigenciasPage() {
     setItems(items.filter((i) => i.id !== toDelete.id));
     toast.success("Exigência removida.");
     setToDelete(null);
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((i) => i.id)),
+    );
+  };
+  const removeSelected = () => {
+    setItems(items.filter((i) => !selected.has(i.id)));
+    toast.success(`${selected.size} exigência(s) removida(s).`);
+    setSelected(new Set());
+    setBulkDelete(false);
   };
 
   const exportCsv = () => {
@@ -288,6 +311,11 @@ function ExigenciasPage() {
               <Button variant="outline" onClick={exportCsv}>
                 <Download className="h-4 w-4 mr-2" /> Exportar CSV
               </Button>
+              {selected.size > 0 && (
+                <Button variant="destructive" onClick={() => setBulkDelete(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selected.size})
+                </Button>
+              )}
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" /> Nova exigência
               </Button>
@@ -312,8 +340,15 @@ function ExigenciasPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 min-w-[140px]">Espécie</TableHead>
-                  <TableHead className="sticky left-[140px] bg-card z-10 min-w-[180px]">Categoria</TableHead>
+                  <TableHead className="sticky left-0 bg-card z-10 w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
+                  <TableHead className="sticky left-10 bg-card z-10 min-w-[140px]">Espécie</TableHead>
+                  <TableHead className="sticky left-[150px] bg-card z-10 min-w-[180px]">Categoria</TableHead>
                   {NUTRIENT_COLUMNS.map((c) => (
                     <TableHead key={c.key} className="whitespace-nowrap text-right">
                       {c.label}
@@ -326,15 +361,22 @@ function ExigenciasPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={NUTRIENT_COLUMNS.length + 3} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={NUTRIENT_COLUMNS.length + 4} className="text-center text-muted-foreground py-10">
                       Nenhuma exigência cadastrada.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((it) => (
-                    <TableRow key={it.id}>
-                      <TableCell className="sticky left-0 bg-card z-10 font-medium">{it.especie}</TableCell>
-                      <TableCell className="sticky left-[140px] bg-card z-10">{it.categoria}</TableCell>
+                    <TableRow key={it.id} data-state={selected.has(it.id) ? "selected" : undefined}>
+                      <TableCell className="sticky left-0 bg-card z-10">
+                        <Checkbox
+                          checked={selected.has(it.id)}
+                          onCheckedChange={() => toggleOne(it.id)}
+                          aria-label={`Selecionar ${it.especie}`}
+                        />
+                      </TableCell>
+                      <TableCell className="sticky left-10 bg-card z-10 font-medium">{it.especie}</TableCell>
+                      <TableCell className="sticky left-[150px] bg-card z-10">{it.categoria}</TableCell>
                       {NUTRIENT_COLUMNS.map((c) => (
                         <TableCell key={c.key} className="text-right tabular-nums">
                           {it.nutrientes[c.key] || 0}
@@ -431,6 +473,19 @@ function ExigenciasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkDelete} onOpenChange={setBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selected.size} exigência(s)?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={removeSelected}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>

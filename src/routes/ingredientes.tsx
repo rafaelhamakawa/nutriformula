@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,6 +146,8 @@ function IngredientesPage() {
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [form, setForm] = useState<Omit<Ingredient, "id">>(emptyForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -193,6 +196,26 @@ function IngredientesPage() {
     setItems(items.filter((i) => i.id !== deleteId));
     setDeleteId(null);
     toast.success("Ingrediente excluído.");
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((i) => i.id)),
+    );
+  };
+  const removeSelected = () => {
+    setItems(items.filter((i) => !selected.has(i.id)));
+    toast.success(`${selected.size} ingrediente(s) excluído(s).`);
+    setSelected(new Set());
+    setBulkDelete(false);
   };
 
   const downloadTemplate = () => {
@@ -265,6 +288,11 @@ function IngredientesPage() {
                 className="hidden"
                 onChange={handleUpload}
               />
+              {selected.size > 0 && (
+                <Button variant="destructive" onClick={() => setBulkDelete(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selected.size})
+                </Button>
+              )}
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" /> Novo
               </Button>
@@ -294,7 +322,14 @@ function IngredientesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">Nome</TableHead>
+                  <TableHead className="sticky left-0 bg-card z-10 w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
+                  <TableHead className="sticky left-10 bg-card z-10 min-w-[180px]">Nome</TableHead>
                   {NUTRIENT_COLUMNS.map((c) => (
                     <TableHead key={c.key} className="text-right whitespace-nowrap">
                       {c.label}
@@ -314,7 +349,7 @@ function IngredientesPage() {
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={NUTRIENT_COLUMNS.length + 3}
+                      colSpan={NUTRIENT_COLUMNS.length + 4}
                       className="text-center text-muted-foreground py-10"
                     >
                       Nenhum ingrediente cadastrado.
@@ -322,8 +357,15 @@ function IngredientesPage() {
                   </TableRow>
                 ) : (
                   filtered.map((it) => (
-                    <TableRow key={it.id}>
-                      <TableCell className="font-medium sticky left-0 bg-card z-10">
+                    <TableRow key={it.id} data-state={selected.has(it.id) ? "selected" : undefined}>
+                      <TableCell className="sticky left-0 bg-card z-10">
+                        <Checkbox
+                          checked={selected.has(it.id)}
+                          onCheckedChange={() => toggleOne(it.id)}
+                          aria-label={`Selecionar ${it.nome}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium sticky left-10 bg-card z-10">
                         {it.nome}
                       </TableCell>
                       {NUTRIENT_COLUMNS.map((c) => (
@@ -416,6 +458,19 @@ function IngredientesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkDelete} onOpenChange={setBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selected.size} ingrediente(s)?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={removeSelected}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
