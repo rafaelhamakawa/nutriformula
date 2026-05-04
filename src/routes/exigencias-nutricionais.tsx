@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AppHeader } from "@/components/app-header";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseCollection } from "@/hooks/use-supabase-collection";
@@ -110,6 +111,8 @@ function ExigenciasPage() {
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState<Omit<Requirement, "id">>(empty);
   const [toDelete, setToDelete] = useState<Requirement | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -168,6 +171,26 @@ function ExigenciasPage() {
     setItems(items.filter((i) => i.id !== toDelete.id));
     toast.success("Exigência removida.");
     setToDelete(null);
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((i) => i.id)),
+    );
+  };
+  const removeSelected = () => {
+    setItems(items.filter((i) => !selected.has(i.id)));
+    toast.success(`${selected.size} exigência(s) removida(s).`);
+    setSelected(new Set());
+    setBulkDelete(false);
   };
 
   const exportCsv = () => {
