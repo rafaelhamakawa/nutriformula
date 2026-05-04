@@ -44,6 +44,9 @@ import equinosImg from "@/assets/species/equinos.png";
 import caesImg from "@/assets/species/caes.png";
 import gatosImg from "@/assets/species/gatos.png";
 import jabutiImg from "@/assets/species/jabuti.png";
+import coelhoImg from "@/assets/species/coelho.png";
+import tilapiaImg from "@/assets/species/tilapia.png";
+import carpaImg from "@/assets/species/carpa.png";
 
 const SPECIE_IMAGES: Record<Specie, string> = {
   frango: frangoImg,
@@ -56,6 +59,9 @@ const SPECIE_IMAGES: Record<Specie, string> = {
   caes: caesImg,
   gatos: gatosImg,
   jabuti: jabutiImg,
+  coelho: coelhoImg,
+  tilapia: tilapiaImg,
+  "carpa-ornamental": carpaImg,
 };
 
 export const Route = createFileRoute("/formular-racao")({
@@ -75,7 +81,10 @@ type Specie =
   | "equinos"
   | "caes"
   | "gatos"
-  | "jabuti";
+  | "jabuti"
+  | "coelho"
+  | "tilapia"
+  | "carpa-ornamental";
 
 type FeedType = "peletizada" | "natural";
 type CalcType = "automatico" | "manual";
@@ -106,6 +115,9 @@ const SPECIES: { value: Specie; label: string; group: string }[] = [
   { value: "caes", label: "Cães", group: "Pets" },
   { value: "gatos", label: "Gatos", group: "Pets" },
   { value: "jabuti", label: "Jabuti", group: "Répteis" },
+  { value: "coelho", label: "Coelho", group: "Coelhos" },
+  { value: "tilapia", label: "Tilápia do Nilo", group: "Peixes" },
+  { value: "carpa-ornamental", label: "Carpa Ornamental (Nishikigoi)", group: "Peixes" },
 ];
 
 const NATURAL_ALLOWED: Specie[] = ["caes", "gatos", "jabuti", "calopsita"];
@@ -122,6 +134,9 @@ const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
   caes: "Cães",
   gatos: "Gatos",
   jabuti: "Outros",
+  coelho: "Coelhos",
+  tilapia: "Peixes",
+  "carpa-ornamental": "Peixes",
 };
 
 // Normaliza textos para comparação tolerante (acento, caixa, espaços).
@@ -149,6 +164,9 @@ function specieMatchers(specie: Specie | null): string[] {
     caes: ["Cão", "Cães", "Caes", "Caninos"],
     gatos: ["Gato", "Felinos"],
     jabuti: ["Jabutis", "Quelônios", "Repteis", "Répteis"],
+    coelho: ["Coelhos", "Cunícolas", "Cunicultura"],
+    tilapia: ["Tilápia", "Tilapias", "Tilápias", "Tilápia do Nilo", "Peixes", "Peixe", "Piscicultura"],
+    "carpa-ornamental": ["Carpa", "Carpas", "Carpa Ornamental", "Carpa Nishikigoi", "Nishikigoi", "Koi", "Peixes", "Peixe", "Peixes Ornamentais"],
   };
   return Array.from(new Set([SPECIE_TO_REQ_ESPECIE[specie], ...labels, ...groups, specie, ...(aliases[specie] ?? [])])).map(norm);
 }

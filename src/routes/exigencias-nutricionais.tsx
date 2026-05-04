@@ -53,7 +53,7 @@ export const Route = createFileRoute("/exigencias-nutricionais")({
 
 type NutrientKey = typeof NUTRIENT_COLUMNS[number]["key"];
 
-const ESPECIES = ["Cães", "Gatos", "Equinos", "Bovinos", "Aves", "Suínos", "Outros"] as const;
+const ESPECIES = ["Cães", "Gatos", "Equinos", "Bovinos", "Aves", "Suínos", "Coelhos", "Peixes", "Outros"] as const;
 
 interface Requirement {
   id: string;
