@@ -874,17 +874,19 @@ function LimitRow({
     <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-center rounded-lg border border-border bg-card/40 p-3">
       <span className="text-sm">{label}</span>
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         placeholder="Mín"
         value={range.min}
-        onChange={(e) => onChange({ ...range, min: e.target.value })}
+        onChange={(e) => onChange({ ...range, min: e.target.value.replace(",", ".") })}
         className="w-full sm:w-28"
       />
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         placeholder="Máx"
         value={range.max}
-        onChange={(e) => onChange({ ...range, max: e.target.value })}
+        onChange={(e) => onChange({ ...range, max: e.target.value.replace(",", ".") })}
         className="w-full sm:w-28"
       />
     </div>
