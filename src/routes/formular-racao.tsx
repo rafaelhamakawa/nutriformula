@@ -1251,7 +1251,7 @@ function StepResultManual({ state }: { state: WizardState }) {
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold mb-2">Ajuste manual</h2>
         <p className="text-muted-foreground text-sm">
-          Ajuste a porcentagem de cada ingrediente. A soma é mantida em 100% automaticamente.
+          Ajuste livremente a porcentagem de cada ingrediente. A soma pode ficar acima ou abaixo de 100%.
         </p>
       </div>
 
