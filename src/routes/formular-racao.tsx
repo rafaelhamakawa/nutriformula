@@ -1038,7 +1038,7 @@ function StepResult({ state }: { state: WizardState }) {
         </div>
         <h2 className="text-2xl font-bold mb-2">Resultado da formulação</h2>
         <p className="text-muted-foreground">
-          Revise as escolhas e calcule a fórmula otimizada.
+          Otimizador Simplex: minimiza o custo atendendo proteínas e aminoácidos exigidos.
         </p>
       </div>
 
@@ -1198,47 +1198,11 @@ function StepResultManual({ state }: { state: WizardState }) {
     });
   }, [state.ingredients]);
 
-  // Atualiza o ingrediente alterado e redistribui o restante proporcionalmente,
-  // respeitando os limites min/max definidos na etapa de restrições.
+  // Ajuste manual livre: o formulador define o valor de cada ingrediente sem
+  // qualquer redistribuição automática nem trava em 100%. A soma é apenas
+  // exibida como referência (pode ficar acima ou abaixo de 100).
   const updatePercent = (nome: string, novo: number) => {
-    setPercent((prev) => {
-      const keys = state.ingredients;
-      if (keys.length === 0) return prev;
-      const limites = (k: string) => {
-        const r = state.ingredientLimits[k] ?? { min: "", max: "" };
-        const min = r.min !== "" ? Math.max(0, Number(r.min)) : 0;
-        const max = r.max !== "" ? Math.min(100, Number(r.max)) : 100;
-        return { min: Number.isFinite(min) ? min : 0, max: Number.isFinite(max) ? max : 100 };
-      };
-      const lim = limites(nome);
-      const v = Math.min(lim.max, Math.max(lim.min, novo));
-      const others = keys.filter((k) => k !== nome);
-      const restante = 100 - v;
-      const prevOthersSum = others.reduce((a, k) => a + (prev[k] ?? 0), 0);
-      const next: Record<string, number> = { ...prev, [nome]: v };
-      if (others.length === 0) {
-        next[nome] = 100;
-        return next;
-      }
-      if (prevOthersSum <= 0) {
-        const eq = restante / others.length;
-        others.forEach((k) => (next[k] = Math.min(limites(k).max, Math.max(limites(k).min, eq))));
-      } else {
-        others.forEach((k) => {
-          const share = ((prev[k] ?? 0) / prevOthersSum) * restante;
-          const l = limites(k);
-          next[k] = Math.min(l.max, Math.max(l.min, share));
-        });
-      }
-      // Ajuste residual para forçar soma = 100.
-      const total = keys.reduce((a, k) => a + next[k], 0);
-      const diff = 100 - total;
-      if (Math.abs(diff) > 0.001) {
-        const last = others[others.length - 1] ?? nome;
-        next[last] = Math.max(0, next[last] + diff);
-      }
-      return next;
-    });
+    setPercent((prev) => ({ ...prev, [nome]: Number.isFinite(novo) ? novo : 0 }));
   };
 
   const total = state.ingredients.reduce((a, k) => a + (percent[k] ?? 0), 0);
@@ -1287,7 +1251,7 @@ function StepResultManual({ state }: { state: WizardState }) {
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold mb-2">Ajuste manual</h2>
         <p className="text-muted-foreground text-sm">
-          Ajuste a porcentagem de cada ingrediente. A soma é mantida em 100% automaticamente.
+          Ajuste livremente a porcentagem de cada ingrediente. A soma pode ficar acima ou abaixo de 100%.
         </p>
       </div>
 
@@ -1330,8 +1294,6 @@ function StepResultManual({ state }: { state: WizardState }) {
                       </div>
                       <Input
                         type="number"
-                        min={0}
-                        max={100}
                         step={0.1}
                         value={v.toFixed(2)}
                         onChange={(e) => updatePercent(ing.nome, Number(e.target.value) || 0)}
@@ -1339,7 +1301,7 @@ function StepResultManual({ state }: { state: WizardState }) {
                       />
                     </div>
                     <Slider
-                      value={[v]}
+                      value={[Math.min(100, Math.max(0, v))]}
                       min={0}
                       max={100}
                       step={0.1}
