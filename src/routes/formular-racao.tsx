@@ -1295,10 +1295,15 @@ function StepResultManual({ state }: { state: WizardState }) {
                         </div>
                       </div>
                       <Input
-                        type="number"
-                        step={0.1}
-                        value={v.toFixed(2)}
-                        onChange={(e) => updatePercent(ing.nome, Number(e.target.value) || 0)}
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={v.toFixed(2)}
+                        key={`${ing.nome}-${v}`}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(",", ".");
+                          const n = parseFloat(raw);
+                          updatePercent(ing.nome, Number.isFinite(n) ? n : 0);
+                        }}
                         className="w-24 text-right"
                       />
                     </div>
