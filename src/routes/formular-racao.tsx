@@ -336,7 +336,7 @@ function FormularRacaoWizard() {
   })();
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  const back = () => setStep(0);
+  const back = () => setStep((s) => Math.max(0, s - 1));
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
