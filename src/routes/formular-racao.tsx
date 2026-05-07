@@ -1038,7 +1038,7 @@ function StepResult({ state }: { state: WizardState }) {
         </div>
         <h2 className="text-2xl font-bold mb-2">Resultado da formulação</h2>
         <p className="text-muted-foreground">
-          Revise as escolhas e calcule a fórmula otimizada.
+          Otimizador Simplex: minimiza o custo atendendo proteínas e aminoácidos exigidos.
         </p>
       </div>
 
