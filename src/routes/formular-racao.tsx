@@ -336,7 +336,7 @@ function FormularRacaoWizard() {
   })();
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  const back = () => setStep(0);
+  const back = () => setStep((s) => Math.max(0, s - 1));
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
@@ -874,17 +874,19 @@ function LimitRow({
     <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-center rounded-lg border border-border bg-card/40 p-3">
       <span className="text-sm">{label}</span>
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         placeholder="Mín"
         value={range.min}
-        onChange={(e) => onChange({ ...range, min: e.target.value })}
+        onChange={(e) => onChange({ ...range, min: e.target.value.replace(",", ".") })}
         className="w-full sm:w-28"
       />
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         placeholder="Máx"
         value={range.max}
-        onChange={(e) => onChange({ ...range, max: e.target.value })}
+        onChange={(e) => onChange({ ...range, max: e.target.value.replace(",", ".") })}
         className="w-full sm:w-28"
       />
     </div>
@@ -1293,10 +1295,14 @@ function StepResultManual({ state }: { state: WizardState }) {
                         </div>
                       </div>
                       <Input
-                        type="number"
-                        step={0.1}
+                        type="text"
+                        inputMode="decimal"
                         value={v.toFixed(2)}
-                        onChange={(e) => updatePercent(ing.nome, Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(",", ".");
+                          const n = parseFloat(raw);
+                          updatePercent(ing.nome, Number.isFinite(n) ? n : 0);
+                        }}
                         className="w-24 text-right"
                       />
                     </div>
