@@ -1294,8 +1294,6 @@ function StepResultManual({ state }: { state: WizardState }) {
                       </div>
                       <Input
                         type="number"
-                        min={0}
-                        max={100}
                         step={0.1}
                         value={v.toFixed(2)}
                         onChange={(e) => updatePercent(ing.nome, Number(e.target.value) || 0)}
@@ -1303,7 +1301,7 @@ function StepResultManual({ state }: { state: WizardState }) {
                       />
                     </div>
                     <Slider
-                      value={[v]}
+                      value={[Math.min(100, Math.max(0, v))]}
                       min={0}
                       max={100}
                       step={0.1}
