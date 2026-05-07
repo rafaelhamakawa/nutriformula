@@ -1297,8 +1297,7 @@ function StepResultManual({ state }: { state: WizardState }) {
                       <Input
                         type="text"
                         inputMode="decimal"
-                        defaultValue={v.toFixed(2)}
-                        key={`${ing.nome}-${v}`}
+                        value={v.toFixed(2)}
                         onChange={(e) => {
                           const raw = e.target.value.replace(",", ".");
                           const n = parseFloat(raw);
