@@ -296,6 +296,7 @@ function FormularRacaoWizard() {
     calcType: null,
   });
   const [search, setSearch] = useState("");
+  const [manualSeed, setManualSeed] = useState<Record<string, number> | null>(null);
 
   const [ingredientsList] = useSupabaseCollection<
     IngredientRow,
