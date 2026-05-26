@@ -1222,6 +1222,18 @@ function StepResult({
 
       const r = calcularFormulaAutomatica(ingredientes, exigencias);
       setResultado(r);
+      if (r.status === "infeasible") {
+        // Tenta uma composição relaxada (sem exigências nutricionais) só para
+        // dar um ponto de partida que o usuário possa ajustar manualmente.
+        const exigSemLimites: ExigenciaNutriente[] = exigencias.map((e) => ({
+          key: e.key,
+          label: e.label,
+        }));
+        const rel = calcularFormulaAutomatica(ingredientes, exigSemLimites);
+        setRelaxado(rel);
+      } else {
+        setRelaxado(null);
+      }
     } catch (e) {
       console.error("Erro no cálculo:", e);
       setErro("Ocorreu um erro inesperado no cálculo. Verifique o console para detalhes.");
