@@ -1299,14 +1299,52 @@ function StepResult({
       )}
 
       {resultado?.status === "infeasible" && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-4 text-sm">
-          <div className="font-semibold mb-1">Formulação inviável</div>
-          {resultado.mensagem}
-          <div className="mt-2 text-xs opacity-80">
-            Sugestões: amplie os limites máximos dos ingredientes, reduza as exigências mínimas, ou adicione mais ingredientes.
+        <div className="space-y-4">
+          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm">
+            <div className="font-semibold mb-1 text-yellow-700">
+              Não foi possível atender todas as exigências automaticamente
+            </div>
+            <div className="text-yellow-800">
+              O solver não encontrou uma combinação que atenda simultaneamente todos os mínimos/máximos definidos.
+              Apresentamos abaixo uma <strong>composição de menor custo (sem restrições nutricionais)</strong> como
+              ponto de partida — você precisará concluir o ajuste manualmente.
+            </div>
+            <div className="mt-2 text-xs opacity-80">
+              Sugestões: amplie os limites máximos dos ingredientes, reduza as exigências mínimas ou adicione mais ingredientes.
+            </div>
           </div>
+
+          {relaxado?.status === "ok" && (
+            <div className="bg-card/40 border border-border rounded-lg p-4">
+              <h3 className="font-semibold mb-3">Composição inicial sugerida</h3>
+              <div className="space-y-2">
+                {relaxado.composicao
+                  .slice()
+                  .sort((a, b) => b.percentual - a.percentual)
+                  .map((c) => (
+                    <div key={c.id} className="flex justify-between items-center text-sm">
+                      <span>{c.nome}</span>
+                      <span className="font-medium tabular-nums">{c.percentual.toFixed(2)}%</span>
+                    </div>
+                  ))}
+              </div>
+              <Button
+                className="w-full mt-4"
+                onClick={() => {
+                  const seed: Record<string, number> = {};
+                  relaxado.composicao.forEach((c) => {
+                    seed[c.nome] = c.percentual;
+                  });
+                  onSwitchToManual(seed);
+                }}
+              >
+                Terminar formulação manualmente
+              </Button>
+            </div>
+          )}
         </div>
       )}
+
 
       {resultado?.status === "ok" && (
         <div className="space-y-5">
