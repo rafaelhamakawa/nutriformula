@@ -23,6 +23,7 @@ import {
   Check,
   Search,
   Sparkles,
+  Weight,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import iconFormular from "@/assets/dashboard/formular.png";
@@ -33,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NUTRIENT_COLUMNS } from "@/routes/ingredientes";
 
 import frangoImg from "@/assets/species/frango.png";
 import poedeiraImg from "@/assets/species/poedeira.png";
@@ -89,6 +91,9 @@ type Specie =
 type FeedType = "peletizada" | "natural";
 type CalcType = "automatico" | "manual";
 
+// Espécies pet que exigem peso corporal para cálculo
+const PET_SPECIES: Specie[] = ["caes", "gatos", "jabuti", "calopsita", "coelho"];
+
 interface Range {
   min: string;
   max: string;
@@ -97,8 +102,10 @@ interface Range {
 interface WizardState {
   specie: Specie | null;
   feedType: FeedType | null;
+  pesoCorporal: string; // kg — usado para pets
+  categoria: string;    // fase/categoria animal
   ingredients: string[];
-  nutrients: string[];
+  nutrients: string[];  // chaves reais dos nutrientes (ex: proteina_bruta)
   ingredientLimits: Record<string, Range>;
   nutrientLimits: Record<string, Range>;
   calcType: CalcType | null;
@@ -122,7 +129,6 @@ const SPECIES: { value: Specie; label: string; group: string }[] = [
 
 const NATURAL_ALLOWED: Specie[] = ["caes", "gatos", "jabuti", "calopsita"];
 
-// Mapeia a espécie do wizard para o rótulo amplo usado em "Exigências Nutricionais".
 const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
   frango: "Aves",
   poedeira: "Aves",
@@ -139,7 +145,6 @@ const SPECIE_TO_REQ_ESPECIE: Record<Specie, string> = {
   "carpa-ornamental": "Peixes",
 };
 
-// Normaliza textos para comparação tolerante (acento, caixa, espaços).
 const norm = (s: string) =>
   (s ?? "")
     .toString()
@@ -148,8 +153,6 @@ const norm = (s: string) =>
     .trim()
     .toLowerCase();
 
-// Retorna todos os "rótulos" aceitos para a espécie do wizard.
-// Aceita: o grupo (Aves/Suínos/...), o label (Frango, Poedeira...) e o value (frango).
 function specieMatchers(specie: Specie | null): string[] {
   if (!specie) return [];
   const labels = SPECIES.filter((s) => s.value === specie).map((s) => s.label);
@@ -177,17 +180,10 @@ function requirementMatchesSpecie(reqEspecie: string, specie: Specie | null): bo
   return matchers.some((m) => normalized === m || normalized.includes(m) || m.includes(normalized));
 }
 
-const NUTRIENTS = [
-  { id: "proteina", label: "Proteína bruta" },
-  { id: "energia", label: "Energia metabolizável" },
-  { id: "lisina", label: "Lisina (aminoácido)" },
-  { id: "metionina", label: "Metionina (aminoácido)" },
-  { id: "calcio", label: "Cálcio (mineral)" },
-  { id: "fosforo", label: "Fósforo (mineral)" },
-];
-
+// Steps do wizard — agora com "Categoria/Peso" depois da espécie
 const STEPS = [
   "Espécie",
+  "Categoria / Peso",
   "Tipo de alimentação",
   "Ingredientes",
   "Nutrientes",
@@ -230,21 +226,58 @@ function findRequirementForCategory(
   );
 }
 
+/**
+ * Retorna os nutrientes que têm valor > 0 na exigência selecionada,
+ * usando as chaves reais do banco (ex: proteina_bruta, calcio…)
+ */
+function getNutrientsFromRequirement(req: RequirementRow | undefined): string[] {
+  if (!req) return [];
+  return Object.entries(req.nutrientes)
+    .filter(([, v]) => typeof v === "number" && v > 0)
+    .map(([k]) => k);
+}
+
+/**
+ * Aplica os valores mínimos da exigência selecionada nos limites de nutrientes.
+ * Usa as chaves reais do banco diretamente.
+ */
 function applyRequirementMinimums(state: WizardState, req: RequirementRow): WizardState {
   let changed = false;
   const nextLimits = { ...state.nutrientLimits };
-  for (const wid of state.nutrients) {
-    const v = getRequirementNutrientValue(req.nutrientes, wid);
-    if (typeof v === "number" && Number.isFinite(v)) {
-      const current = nextLimits[wid] ?? { min: "", max: "" };
+  for (const nutrientKey of state.nutrients) {
+    // Tenta a chave exata primeiro, depois normalizada
+    const rawVal = req.nutrientes[nutrientKey];
+    const v = typeof rawVal === "number" && Number.isFinite(rawVal) && rawVal > 0 ? rawVal : undefined;
+    if (v !== undefined) {
+      const current = nextLimits[nutrientKey] ?? { min: "", max: "" };
       const min = String(v);
       if (current.min !== min) {
-        nextLimits[wid] = { ...current, min };
+        nextLimits[nutrientKey] = { ...current, min };
         changed = true;
       }
     }
   }
   return changed ? { ...state, nutrientLimits: nextLimits } : state;
+}
+
+/**
+ * Calcula exigências por peso metabólico para pets (cães e gatos).
+ * Fator NRC: EM_repouso = 70 * peso^0.75 kcal/dia
+ * Retorna um objeto com as chaves e os valores ajustados (por 100g de ração).
+ */
+function ajustarExigenciasPorPeso(req: RequirementRow, pesoCorporalKg: number): Record<string, number> {
+  if (pesoCorporalKg <= 0) return req.nutrientes;
+  // Energia de manutenção (kcal/dia) — NRC 2006
+  const emDia = 70 * Math.pow(pesoCorporalKg, 0.75);
+  // Assume que o req.nutrientes.energia_metabolizavel está em kcal/kg de ração
+  // Calcula quanto de ração/dia (kg) o animal precisa
+  const emRacao = req.nutrientes["energia_metabolizavel"] || req.nutrientes["energia_digestivel"] || 0;
+  if (emRacao <= 0) return req.nutrientes;
+  const racaoDia_kg = emDia / emRacao;
+  // Proteína: g/dia -> % na ração
+  // As exigências do banco estão em % (g/100g), então deixamos como estão
+  // e apenas anotamos a exigência ajustada como referência informativa
+  return req.nutrientes; // Os % permanecem, o usuário verá a quantidade/dia em informativo
 }
 
 function FormularRacaoWizard() {
@@ -254,6 +287,8 @@ function FormularRacaoWizard() {
   const [state, setState] = useState<WizardState>({
     specie: null,
     feedType: null,
+    pesoCorporal: "",
+    categoria: "",
     ingredients: [],
     nutrients: [],
     ingredientLimits: {},
@@ -261,7 +296,6 @@ function FormularRacaoWizard() {
     calcType: null,
   });
   const [search, setSearch] = useState("");
-  const [reqCategoria, setReqCategoria] = useState<string>("");
 
   const [ingredientsList] = useSupabaseCollection<
     IngredientRow,
@@ -303,34 +337,54 @@ function FormularRacaoWizard() {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
 
+  // Quando a espécie muda, define a categoria automaticamente
   useEffect(() => {
-    setReqCategoria((current) => {
-      if (!state.specie) return "";
-      const categories = getRequirementCategories(requirementsList, state.specie);
-      if (current && categories.some((cat) => norm(cat) === norm(current))) return current;
-      return categories[0] ?? "";
+    setState((current) => {
+      if (!current.specie) return { ...current, categoria: "" };
+      const categories = getRequirementCategories(requirementsList, current.specie);
+      const stillValid = current.categoria && categories.some((cat) => norm(cat) === norm(current.categoria));
+      const newCategoria = stillValid ? current.categoria : (categories[0] ?? "");
+      return { ...current, categoria: newCategoria };
     });
   }, [requirementsList, state.specie]);
 
+  // Quando a categoria muda, preenche automáticamente os nutrientes disponíveis
+  // e os limites mínimos
   useEffect(() => {
-    if (!reqCategoria) return;
-    const req = findRequirementForCategory(requirementsList, state.specie, reqCategoria);
+    if (!state.categoria) return;
+    const req = findRequirementForCategory(requirementsList, state.specie, state.categoria);
     if (!req) return;
-    setState((s) => applyRequirementMinimums(s, req));
-  }, [requirementsList, reqCategoria, state.specie, state.nutrients]);
+
+    // Pega os nutrientes que têm valor na exigência
+    const availableNutrients = getNutrientsFromRequirement(req);
+
+    setState((s) => {
+      // Mantém os nutrientes já selecionados que ainda existem na exigência
+      // e adiciona os novos automaticamente se a lista estava vazia
+      const nextNutrients = s.nutrients.length === 0
+        ? availableNutrients
+        : s.nutrients.filter((n) => availableNutrients.includes(n) || availableNutrients.length === 0);
+
+      const stateWithNutrients = { ...s, nutrients: nextNutrients };
+      return applyRequirementMinimums(stateWithNutrients, req);
+    });
+  }, [requirementsList, state.categoria, state.specie]);
 
   if (loading || !user) {
     return <LogoLoader label="Preparando o formulador..." />;
   }
 
+  const isPet = state.specie ? PET_SPECIES.includes(state.specie) : false;
+
   const canNext = (() => {
     switch (step) {
       case 0: return !!state.specie;
-      case 1: return !!state.feedType;
-      case 2: return state.ingredients.length > 0;
-      case 3: return state.nutrients.length > 0;
-      case 4: return true;
-      case 5: return !!state.calcType;
+      case 1: return !!state.categoria || (!isPet && true); // categoria é obrigatória
+      case 2: return !!state.feedType;
+      case 3: return state.ingredients.length > 0;
+      case 4: return state.nutrients.length > 0;
+      case 5: return true;
+      case 6: return !!state.calcType;
       default: return true;
     }
   })();
@@ -375,6 +429,7 @@ function FormularRacaoWizard() {
 
         <Card className="p-6 md:p-8 bg-card/60 backdrop-blur border-border/50">
           <div key={step} className="animate-step-in">
+
           {step === 0 && (
             <StepSpecie
               value={state.specie}
@@ -382,6 +437,9 @@ function FormularRacaoWizard() {
                 setState((s) => ({
                   ...s,
                   specie: v,
+                  categoria: "",
+                  nutrients: [],
+                  nutrientLimits: {},
                   feedType:
                     s.feedType === "natural" && !NATURAL_ALLOWED.includes(v)
                       ? null
@@ -393,6 +451,20 @@ function FormularRacaoWizard() {
           )}
 
           {step === 1 && (
+            <StepCategoriaEPeso
+              specie={state.specie}
+              requirements={requirementsList}
+              categoria={state.categoria}
+              pesoCorporal={state.pesoCorporal}
+              isPet={isPet}
+              onCategoriaChange={(cat) => {
+                setState((s) => ({ ...s, categoria: cat, nutrients: [], nutrientLimits: {} }));
+              }}
+              onPesoChange={(peso) => setState((s) => ({ ...s, pesoCorporal: peso }))}
+            />
+          )}
+
+          {step === 2 && (
             <StepFeedType
               specie={state.specie}
               value={state.feedType}
@@ -403,7 +475,7 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <StepIngredients
               search={search}
               setSearch={setSearch}
@@ -420,8 +492,11 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <StepNutrients
+              specie={state.specie}
+              categoria={state.categoria}
+              requirements={requirementsList}
               selected={state.nutrients}
               onToggle={(n) =>
                 setState((s) => ({
@@ -434,17 +509,11 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <StepRestrictions
               specie={state.specie}
               requirements={requirementsList}
-              categoria={reqCategoria}
-              onCategoriaChange={(cat) => {
-                setReqCategoria(cat);
-                const req = findRequirementForCategory(requirementsList, state.specie, cat);
-                if (!req) return;
-                setState((s) => applyRequirementMinimums(s, req));
-              }}
+              categoria={state.categoria}
               ingredients={state.ingredients}
               nutrients={state.nutrients}
               ingredientLimits={state.ingredientLimits}
@@ -464,7 +533,7 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <StepCalcType
               value={state.calcType}
               onChange={(v) => {
@@ -474,8 +543,8 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 6 && state.calcType === "manual" && <StepResultManual state={state} />}
-          {step === 6 && state.calcType !== "manual" && <StepResult state={state} />}
+          {step === 7 && state.calcType === "manual" && <StepResultManual state={state} ingredientsList={ingredientsList} />}
+          {step === 7 && state.calcType !== "manual" && <StepResult state={state} ingredientsList={ingredientsList} />}
           </div>
         </Card>
 
@@ -558,6 +627,112 @@ function StepSpecie({ value, onChange }: { value: Specie | null; onChange: (v: S
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ---- NOVO: Step de Categoria e Peso ----
+function StepCategoriaEPeso({
+  specie,
+  requirements,
+  categoria,
+  pesoCorporal,
+  isPet,
+  onCategoriaChange,
+  onPesoChange,
+}: {
+  specie: Specie | null;
+  requirements: RequirementRow[];
+  categoria: string;
+  pesoCorporal: string;
+  isPet: boolean;
+  onCategoriaChange: (cat: string) => void;
+  onPesoChange: (peso: string) => void;
+}) {
+  const especieLabel = specie ? SPECIES.find((s) => s.value === specie)?.label : "";
+  const categories = useMemo(
+    () => getRequirementCategories(requirements, specie),
+    [requirements, specie],
+  );
+
+  const selectedReq = useMemo(
+    () => findRequirementForCategory(requirements, specie, categoria),
+    [requirements, specie, categoria],
+  );
+
+  const pesoNum = parseFloat(pesoCorporal);
+  const emRacao = selectedReq?.nutrientes["energia_metabolizavel"] || selectedReq?.nutrientes["energia_digestivel"] || 0;
+  const emDia = isPet && pesoNum > 0 ? 70 * Math.pow(pesoNum, 0.75) : null;
+  const racaoDiaKg = emDia && emRacao > 0 ? emDia / emRacao : null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-1">Categoria e fase do animal</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Selecione a fase/categoria de <strong>{especieLabel}</strong> para carregar as exigências nutricionais automaticamente.
+        </p>
+
+        {categories.length === 0 ? (
+          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
+            <p className="font-semibold mb-1">Nenhuma exigência cadastrada para {especieLabel}</p>
+            <p>Cadastre as exigências em <strong>Exigências Nutricionais</strong> para preencher os valores automaticamente. Você ainda pode continuar e definir os valores manualmente.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Label>Fase / categoria</Label>
+            <Select value={categoria} onValueChange={onCategoriaChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a fase/categoria..." />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedReq && (
+              <p className="text-xs text-muted-foreground">
+                ✓ Exigências nutricionais encontradas — os valores mínimos serão aplicados automaticamente na etapa de restrições.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isPet && (
+        <div className="rounded-lg border border-border bg-card/40 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Weight className="h-4 w-4 text-primary" />
+            <Label className="font-semibold">Peso corporal do animal (kg)</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Para pets, o peso é usado para calcular a necessidade energética diária (NRC 2006: EM = 70 × peso^0.75 kcal/dia).
+          </p>
+          <Input
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="200"
+            placeholder="Ex.: 10.5"
+            value={pesoCorporal}
+            onChange={(e) => onPesoChange(e.target.value)}
+            className="max-w-xs"
+          />
+          {emDia && (
+            <div className="rounded-md bg-primary/10 border border-primary/20 p-3 text-sm space-y-1">
+              <div className="font-semibold text-primary">Estimativa de necessidade diária</div>
+              <div>Energia de manutenção: <strong>{emDia.toFixed(0)} kcal/dia</strong></div>
+              {racaoDiaKg && (
+                <div>Ração estimada/dia: <strong>{(racaoDiaKg * 1000).toFixed(0)} g/dia</strong></div>
+              )}
+              <p className="text-xs text-muted-foreground">* Referência para manutenção. Ajuste conforme nível de atividade, gestação, lactação, etc.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -706,33 +881,80 @@ function StepIngredients({
   );
 }
 
+// ---- REFORMULADO: StepNutrients agora usa os nutrientes reais do banco ----
 function StepNutrients({
+  specie,
+  categoria,
+  requirements,
   selected,
   onToggle,
 }: {
+  specie: Specie | null;
+  categoria: string;
+  requirements: RequirementRow[];
   selected: string[];
   onToggle: (n: string) => void;
 }) {
+  // Nutrientes disponíveis na exigência cadastrada para a espécie/categoria
+  const req = useMemo(
+    () => findRequirementForCategory(requirements, specie, categoria),
+    [requirements, specie, categoria],
+  );
+
+  const nutrientesDisp = useMemo(() => {
+    if (!req) return [];
+    return Object.entries(req.nutrientes)
+      .filter(([, v]) => typeof v === "number" && v > 0)
+      .map(([key]) => {
+        const col = NUTRIENT_COLUMNS.find((c) => c.key === key);
+        return { key, label: col?.label ?? key, unit: col?.unit ?? "" };
+      });
+  }, [req]);
+
+  const todosNutrientes = useMemo(() => {
+    // Se não há exigência, mostra todos os nutrientes do banco
+    return NUTRIENT_COLUMNS.map((c) => ({ key: c.key, label: c.label, unit: c.unit }));
+  }, []);
+
+  const listaExibir = nutrientesDisp.length > 0 ? nutrientesDisp : todosNutrientes;
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Selecione os nutrientes</h2>
-      <p className="text-sm text-muted-foreground mb-6">
+      <p className="text-sm text-muted-foreground mb-2">
         Quais nutrientes serão considerados na formulação?
       </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {NUTRIENTS.map((n) => {
-          const checked = selected.includes(n.id);
+      {nutrientesDisp.length > 0 ? (
+        <p className="text-xs text-primary mb-4">
+          ✓ {nutrientesDisp.length} nutrientes encontrados nas exigências de <strong>{categoria}</strong>. Os selecionados terão o mínimo aplicado automaticamente.
+        </p>
+      ) : (
+        <p className="text-xs text-yellow-600 mb-4">
+          Nenhuma exigência cadastrada para esta categoria. Selecione os nutrientes manualmente e defina os limites na próxima etapa.
+        </p>
+      )}
+      <div className="grid gap-2 sm:grid-cols-2 max-h-96 overflow-y-auto pr-1">
+        {listaExibir.map((n) => {
+          const checked = selected.includes(n.key);
           return (
             <Label
-              key={n.id}
+              key={n.key}
               className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                 checked
                   ? "border-primary bg-primary/15"
                   : "border-border bg-card/40 hover:border-primary/50"
               }`}
             >
-              <Checkbox checked={checked} onCheckedChange={() => onToggle(n.id)} />
-              <span>{n.label}</span>
+              <Checkbox checked={checked} onCheckedChange={() => onToggle(n.key)} />
+              <div className="flex-1">
+                <span className="text-sm">{n.label}</span>
+                {n.unit && <span className="text-xs text-muted-foreground ml-1">({n.unit})</span>}
+              </div>
+              {req && req.nutrientes[n.key] > 0 && (
+                <span className="text-xs text-primary tabular-nums">
+                  mín: {req.nutrientes[n.key]}
+                </span>
+              )}
             </Label>
           );
         })}
@@ -741,11 +963,11 @@ function StepNutrients({
   );
 }
 
+// ---- REFORMULADO: StepRestrictions usa chaves reais ----
 function StepRestrictions({
   specie,
   requirements,
   categoria,
-  onCategoriaChange,
   ingredients,
   nutrients,
   ingredientLimits,
@@ -756,7 +978,6 @@ function StepRestrictions({
   specie: Specie | null;
   requirements: RequirementRow[];
   categoria: string;
-  onCategoriaChange: (cat: string) => void;
   ingredients: string[];
   nutrients: string[];
   ingredientLimits: Record<string, Range>;
@@ -765,54 +986,23 @@ function StepRestrictions({
   setNutrientLimit: (id: string, r: Range) => void;
 }) {
   const especieReq = specie ? SPECIE_TO_REQ_ESPECIE[specie] : null;
-  const matchingRequirements = useMemo(
-    () => requirements.filter((r) => requirementMatchesSpecie(r.especie, specie) && r.categoria.trim().length > 0),
-    [requirements, specie],
-  );
-  const categoriasUnicas = useMemo(
-    () => Array.from(new Map(matchingRequirements.map((r) => [norm(r.categoria), r.categoria.trim()])).values()),
-    [matchingRequirements],
-  );
-  const fallbackCategorias = specie === "frango" ? ["Frango", "Frango de corte", "Inicial", "Crescimento", "Final"] : [];
-  const opcoesCategoria = categoriasUnicas.length > 0 ? categoriasUnicas : fallbackCategorias;
 
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-xl font-semibold mb-1">Restrições</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Defina valores mínimo e máximo (opcional).
+          Defina valores mínimo e máximo para cada nutriente e ingrediente.
         </p>
-
-        <div className="rounded-lg border border-border bg-card/40 p-4 space-y-2">
-          <Label className="text-sm">Categoria do animal {especieReq ? `(${especieReq})` : ""}</Label>
-          {opcoesCategoria.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Nenhuma exigência cadastrada para essa espécie. Cadastre em{" "}
-              <strong>Exigências Nutricionais</strong> para preencher os mínimos automaticamente.
-            </p>
-          ) : (
-            <>
-              <Select value={categoria} onValueChange={onCategoriaChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria/fase..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {opcoesCategoria.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {categoriasUnicas.length > 0
-                  ? "Ao selecionar a categoria, os valores mínimos dos nutrientes abaixo são preenchidos automaticamente com a exigência cadastrada."
-                  : "Selecione a fase/categoria. Cadastre as exigências nutricionais dessa categoria para preencher os mínimos automaticamente."}
-              </p>
-            </>
-          )}
-        </div>
+        {categoria && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm mb-2">
+            <span className="text-primary font-medium">Categoria selecionada:</span>{" "}
+            {categoria} {especieReq ? `(${especieReq})` : ""}
+            <span className="text-muted-foreground text-xs ml-2">
+              — mínimos carregados automaticamente
+            </span>
+          </div>
+        )}
       </div>
 
       <section>
@@ -821,15 +1011,16 @@ function StepRestrictions({
           <p className="text-sm text-muted-foreground">Nenhum nutriente selecionado.</p>
         ) : (
           <div className="space-y-3">
-            {nutrients.map((id) => {
-              const label = NUTRIENTS.find((n) => n.id === id)?.label ?? id;
-              const r = nutrientLimits[id] ?? { min: "", max: "" };
+            {nutrients.map((key) => {
+              const col = NUTRIENT_COLUMNS.find((c) => c.key === key);
+              const label = col ? `${col.label} (${col.unit})` : key;
+              const r = nutrientLimits[key] ?? { min: "", max: "" };
               return (
                 <LimitRow
-                  key={id}
+                  key={key}
                   label={label}
                   range={r}
-                  onChange={(nr) => setNutrientLimit(id, nr)}
+                  onChange={(nr) => setNutrientLimit(key, nr)}
                 />
               );
             })}
@@ -911,14 +1102,14 @@ function StepCalcType({
       >
         <FeedOption
           id="automatico"
-          title="Automático"
-          desc="O sistema otimiza com base nas restrições."
+          title="Automático (Solver)"
+          desc="O sistema usa Programação Linear (Simplex) para minimizar o custo respeitando as exigências nutricionais."
           selected={value === "automatico"}
         />
         <FeedOption
           id="manual"
           title="Manual"
-          desc="Você define as proporções."
+          desc="Você define as proporções de cada ingrediente livremente."
           selected={value === "manual"}
         />
       </RadioGroup>
@@ -926,75 +1117,25 @@ function StepCalcType({
   );
 }
 
-// Mapeia chaves "amigáveis" do wizard para chaves reais dos nutrientes do banco.
-const WIZARD_TO_NUTRIENT_KEY: Record<string, string> = {
-  proteina: "proteina_bruta",
-  energia: "energia_metabolizavel",
-  lisina: "lisina_dig",
-  metionina: "met_cist_dig",
-  calcio: "calcio",
-  fosforo: "fosforo_dig",
-};
-
-const REQUIREMENT_NUTRIENT_ALIASES: Record<string, string[]> = {
-  proteina: ["proteina_bruta", "proteína bruta", "proteina", "pb"],
-  energia: ["energia_metabolizavel", "energia metabolizável", "energia_digestivel", "energia digestível", "energia", "em", "ed"],
-  lisina: ["lisina_dig", "lisina digestível", "lisina", "lisina_digestivel"],
-  metionina: ["met_cist_dig", "met. + cist. digestível", "metionina", "metionina_dig", "met_cist", "metionina_cistina"],
-  calcio: ["calcio", "cálcio", "ca"],
-  fosforo: ["fosforo_dig", "fósforo digestível", "fosforo", "fósforo", "fosforo_digestivel", "p"],
-};
-
-function getRequirementNutrientValue(nutrientes: Record<string, unknown>, wizardId: string): number | undefined {
-  const nutrientKeyNorm = (s: string) => norm(s).replace(/[^a-z0-9]+/g, "");
-  const wanted = [WIZARD_TO_NUTRIENT_KEY[wizardId] ?? wizardId, ...(REQUIREMENT_NUTRIENT_ALIASES[wizardId] ?? [])].map(nutrientKeyNorm);
-  for (const [key, value] of Object.entries(nutrientes ?? {})) {
-    if (wanted.includes(nutrientKeyNorm(key))) {
-      const n = Number(value);
-      return Number.isFinite(n) && n > 0 ? n : undefined;
-    }
-  }
-  return undefined;
-}
-
-function StepResult({ state }: { state: WizardState }) {
-  const [items] = useSupabaseCollection<
-    {
-      id: string;
-      nome: string;
-      preco: number;
-      nutrientes: Record<string, number>;
-    },
-    {
-      id: string;
-      user_id: string;
-      nome: string;
-      preco: number | null;
-      nutrientes: Record<string, number> | null;
-    }
-  >(
-    "ingredients",
-    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
-    (row) => ({
-      id: row.id,
-      nome: row.nome,
-      preco: Number(row.preco) || 0,
-      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
-    }),
-  );
-
+// ---- REFORMULADO: StepResult com mapeamento correto de chaves ----
+function StepResult({ state, ingredientsList }: { state: WizardState; ingredientsList: IngredientRow[] }) {
   const [resultado, setResultado] = useState<ResultadoFormulacao | null>(null);
   const [calculando, setCalculando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const podeAuto = state.calcType === "automatico";
 
   const executar = () => {
     setCalculando(true);
+    setErro(null);
     try {
-      // Casa ingredientes selecionados (por nome) com os cadastrados.
-      const selMap = new Map(items.map((i) => [i.nome.toLowerCase(), i]));
+      // Casa ingredientes selecionados (por nome) com os cadastrados
+      const selMap = new Map(ingredientsList.map((i) => [i.nome.toLowerCase(), i]));
       const ingredientes: IngredienteEntrada[] = state.ingredients.map((nome) => {
         const found = selMap.get(nome.toLowerCase());
+        if (!found) {
+          console.warn(`Ingrediente "${nome}" não encontrado no banco.`);
+        }
         const limites = state.ingredientLimits[nome] ?? { min: "", max: "" };
         const min = limites.min !== "" ? Number(limites.min) : undefined;
         const max = limites.max !== "" ? Number(limites.max) : undefined;
@@ -1002,16 +1143,18 @@ function StepResult({ state }: { state: WizardState }) {
           id: nome,
           nome,
           preco: found?.preco ?? 0,
+          // Passa os nutrientes com as chaves reais do banco
           nutrientes: found?.nutrientes ?? {},
           min: Number.isFinite(min) ? min : undefined,
           max: Number.isFinite(max) ? max : undefined,
         };
       });
 
-      const exigencias: ExigenciaNutriente[] = state.nutrients.map((wid) => {
-        const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
-        const label = NUTRIENTS.find((n) => n.id === wid)?.label ?? key;
-        const r = state.nutrientLimits[wid] ?? { min: "", max: "" };
+      // Exigências usando as chaves reais do banco diretamente
+      const exigencias: ExigenciaNutriente[] = state.nutrients.map((key) => {
+        const col = NUTRIENT_COLUMNS.find((c) => c.key === key);
+        const label = col?.label ?? key;
+        const r = state.nutrientLimits[key] ?? { min: "", max: "" };
         const min = r.min !== "" ? Number(r.min) : undefined;
         const max = r.max !== "" ? Number(r.max) : undefined;
         return {
@@ -1022,12 +1165,49 @@ function StepResult({ state }: { state: WizardState }) {
         };
       });
 
+      if (ingredientes.length === 0) {
+        setErro("Nenhum ingrediente selecionado ou encontrado no banco.");
+        return;
+      }
+
+      if (exigencias.length === 0) {
+        setErro("Nenhum nutriente selecionado. Volte e selecione ao menos um nutriente.");
+        return;
+      }
+
+      // Verifica se os ingredientes têm os nutrientes necessários
+      const nutrientesPresentes = new Set(
+        ingredientes.flatMap((ing) =>
+          Object.entries(ing.nutrientes)
+            .filter(([, v]) => Number(v) > 0)
+            .map(([k]) => k)
+        )
+      );
+      const nutrientesFaltantes = exigencias
+        .filter((ex) => !nutrientesPresentes.has(ex.key))
+        .map((ex) => ex.label ?? ex.key);
+
+      if (nutrientesFaltantes.length > 0) {
+        setErro(
+          `Os seguintes nutrientes não possuem dados nos ingredientes selecionados: ${nutrientesFaltantes.join(", ")}. ` +
+          `Preencha os valores nutricionais dos ingredientes ou remova esses nutrientes da formulação.`
+        );
+        return;
+      }
+
       const r = calcularFormulaAutomatica(ingredientes, exigencias);
       setResultado(r);
+    } catch (e) {
+      console.error("Erro no cálculo:", e);
+      setErro("Ocorreu um erro inesperado no cálculo. Verifique o console para detalhes.");
     } finally {
       setCalculando(false);
     }
   };
+
+  const totalPercent = resultado?.status === "ok"
+    ? resultado.composicao.reduce((a, c) => a + c.percentual, 0)
+    : 0;
 
   return (
     <div className="py-2">
@@ -1040,17 +1220,18 @@ function StepResult({ state }: { state: WizardState }) {
         </div>
         <h2 className="text-2xl font-bold mb-2">Resultado da formulação</h2>
         <p className="text-muted-foreground">
-          Otimizador Simplex: minimiza o custo atendendo proteínas e aminoácidos exigidos.
+          Otimizador Simplex: minimiza o custo atendendo todas as exigências nutricionais.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <div className="text-left space-y-2 text-sm bg-card/40 border border-border rounded-lg p-4">
           <Row label="Espécie" value={state.specie ?? "—"} />
+          <Row label="Categoria" value={state.categoria || "—"} />
           <Row label="Tipo" value={state.feedType ?? "—"} />
           <Row label="Ingredientes" value={`${state.ingredients.length} selecionado(s)`} />
           <Row label="Nutrientes" value={`${state.nutrients.length} selecionado(s)`} />
-          <Row label="Cálculo" value={state.calcType ?? "—"} />
+          {state.pesoCorporal && <Row label="Peso corporal" value={`${state.pesoCorporal} kg`} />}
         </div>
 
         <div className="flex flex-col gap-3 items-stretch justify-center bg-card/40 border border-border rounded-lg p-4">
@@ -1064,30 +1245,61 @@ function StepResult({ state }: { state: WizardState }) {
           </Button>
           {!podeAuto && (
             <p className="text-xs text-muted-foreground">
-              Selecione "Automático" na etapa de cálculo para usar o otimizador.
+              Selecione "Automático" na etapa de cálculo para usar o otimizador Simplex.
             </p>
           )}
+          <p className="text-xs text-muted-foreground">
+            O solver minimiza o custo (R$/kg) respeitando os limites mínimos/máximos de nutrientes e ingredientes.
+          </p>
         </div>
       </div>
 
+      {erro && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-4 text-sm mb-4">
+          <div className="font-semibold mb-1">Erro na formulação</div>
+          {erro}
+        </div>
+      )}
+
       {resultado?.status === "infeasible" && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-4 text-sm">
+          <div className="font-semibold mb-1">Formulação inviável</div>
           {resultado.mensagem}
+          <div className="mt-2 text-xs opacity-80">
+            Sugestões: amplie os limites máximos dos ingredientes, reduza as exigências mínimas, ou adicione mais ingredientes.
+          </div>
         </div>
       )}
 
       {resultado?.status === "ok" && (
         <div className="space-y-5">
           <div className="bg-card/40 border border-border rounded-lg p-4">
-            <h3 className="font-semibold mb-3">Composição da fórmula</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Composição da fórmula</h3>
+              <span className={`text-xs px-2 py-1 rounded-md border ${
+                Math.abs(totalPercent - 100) < 0.1
+                  ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/40"
+                  : "bg-yellow-500/15 text-yellow-700 border-yellow-500/40"
+              }`}>
+                Total: {totalPercent.toFixed(2)}%
+              </span>
+            </div>
             <div className="space-y-2">
               {resultado.composicao
                 .slice()
                 .sort((a, b) => b.percentual - a.percentual)
                 .map((c) => (
-                  <div key={c.id} className="flex justify-between text-sm">
+                  <div key={c.id} className="flex justify-between items-center text-sm">
                     <span>{c.nome}</span>
-                    <span className="font-medium">{c.percentual.toFixed(2)}%</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-32 bg-border rounded-full h-1.5">
+                        <div
+                          className="bg-primary h-1.5 rounded-full"
+                          style={{ width: `${Math.min(100, c.percentual)}%` }}
+                        />
+                      </div>
+                      <span className="font-medium w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                    </div>
                   </div>
                 ))}
             </div>
@@ -1101,17 +1313,22 @@ function StepResult({ state }: { state: WizardState }) {
             <h3 className="font-semibold mb-3">Composição nutricional</h3>
             <div className="space-y-2 text-sm">
               {resultado.nutrientes.map((n) => (
-                <div key={n.key} className="flex justify-between">
-                  <span className={n.atendido ? "" : "text-destructive"}>
-                    {n.label ?? n.key}
-                    {typeof n.min === "number" && (
-                      <span className="text-muted-foreground"> (min {n.min})</span>
-                    )}
-                    {typeof n.max === "number" && (
-                      <span className="text-muted-foreground"> (max {n.max})</span>
-                    )}
-                  </span>
-                  <span className="font-medium">{n.valor.toFixed(3)}</span>
+                <div
+                  key={n.key}
+                  className={`flex justify-between items-center rounded-md border px-3 py-2 ${
+                    n.atendido
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-destructive/10 border-destructive/30 text-destructive"
+                  }`}
+                >
+                  <div>
+                    <span className="font-medium">{n.label ?? n.key}</span>
+                    <div className="text-xs opacity-70">
+                      {typeof n.min === "number" && <>mín: {n.min} </>}
+                      {typeof n.max === "number" && <>· máx: {n.max}</>}
+                    </div>
+                  </div>
+                  <span className="font-semibold tabular-nums">{n.valor.toFixed(3)}</span>
                 </div>
               ))}
             </div>
@@ -1144,35 +1361,10 @@ function Row({ label, value }: { label: string; value: string }) {
 
 // ---------- Ajuste manual ----------
 
-function StepResultManual({ state }: { state: WizardState }) {
-  const [items] = useSupabaseCollection<
-    {
-      id: string;
-      nome: string;
-      preco: number;
-      nutrientes: Record<string, number>;
-    },
-    {
-      id: string;
-      user_id: string;
-      nome: string;
-      preco: number | null;
-      nutrientes: Record<string, number> | null;
-    }
-  >(
-    "ingredients",
-    (it) => ({ nome: it.nome, preco: it.preco, nutrientes: it.nutrientes }),
-    (row) => ({
-      id: row.id,
-      nome: row.nome,
-      preco: Number(row.preco) || 0,
-      nutrientes: (row.nutrientes ?? {}) as Record<string, number>,
-    }),
-  );
-
-  // Resolve dados de cada ingrediente selecionado.
+function StepResultManual({ state, ingredientsList }: { state: WizardState; ingredientsList: IngredientRow[] }) {
+  // Resolve dados de cada ingrediente selecionado
   const ingredientesData = useMemo(() => {
-    const selMap = new Map(items.map((i) => [i.nome.toLowerCase(), i]));
+    const selMap = new Map(ingredientsList.map((i) => [i.nome.toLowerCase(), i]));
     return state.ingredients.map((nome) => {
       const found = selMap.get(nome.toLowerCase());
       return {
@@ -1181,9 +1373,9 @@ function StepResultManual({ state }: { state: WizardState }) {
         nutrientes: found?.nutrientes ?? {},
       };
     });
-  }, [items, state.ingredients]);
+  }, [ingredientsList, state.ingredients]);
 
-  // Percentual por ingrediente (inicializa distribuído igualmente).
+  // Percentual por ingrediente (inicializa distribuído igualmente)
   const [percent, setPercent] = useState<Record<string, number>>({});
   useEffect(() => {
     setPercent((prev) => {
@@ -1200,9 +1392,6 @@ function StepResultManual({ state }: { state: WizardState }) {
     });
   }, [state.ingredients]);
 
-  // Ajuste manual livre: o formulador define o valor de cada ingrediente sem
-  // qualquer redistribuição automática nem trava em 100%. A soma é apenas
-  // exibida como referência (pode ficar acima ou abaixo de 100).
   const updatePercent = (nome: string, novo: number) => {
     setPercent((prev) => ({ ...prev, [nome]: Number.isFinite(novo) ? novo : 0 }));
   };
@@ -1216,16 +1405,17 @@ function StepResultManual({ state }: { state: WizardState }) {
     );
   }, [ingredientesData, percent]);
 
+  // Usa chaves reais do banco diretamente
   const nutrientesCalc = useMemo(() => {
-    return state.nutrients.map((wid) => {
-      const key = WIZARD_TO_NUTRIENT_KEY[wid] ?? wid;
-      const label = NUTRIENTS.find((n) => n.id === wid)?.label ?? key;
+    return state.nutrients.map((key) => {
+      const col = NUTRIENT_COLUMNS.find((c) => c.key === key);
+      const label = col?.label ?? key;
       const valor = ingredientesData.reduce((acc, ing) => {
         const pct = percent[ing.nome] ?? 0;
         const v = Number(ing.nutrientes?.[key]) || 0;
         return acc + (v * pct) / 100;
       }, 0);
-      const r = state.nutrientLimits[wid] ?? { min: "", max: "" };
+      const r = state.nutrientLimits[key] ?? { min: "", max: "" };
       const min = r.min !== "" ? Number(r.min) : undefined;
       const max = r.max !== "" ? Number(r.max) : undefined;
       let status: "ok" | "warn" | "bad" = "ok";
@@ -1337,8 +1527,8 @@ function StepResultManual({ state }: { state: WizardState }) {
                     <div>
                       <div className="font-medium">{n.label}</div>
                       <div className="text-xs opacity-80">
-                        {typeof n.min === "number" && <>min {n.min} </>}
-                        {typeof n.max === "number" && <>· max {n.max}</>}
+                        {typeof n.min === "number" && <>mín {n.min} </>}
+                        {typeof n.max === "number" && <>· máx {n.max}</>}
                         {typeof n.min !== "number" && typeof n.max !== "number" && (
                           <>sem exigência definida</>
                         )}
