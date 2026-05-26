@@ -544,8 +544,23 @@ function FormularRacaoWizard() {
             />
           )}
 
-          {step === 7 && state.calcType === "manual" && <StepResultManual state={state} ingredientsList={ingredientsList} />}
-          {step === 7 && state.calcType !== "manual" && <StepResult state={state} ingredientsList={ingredientsList} />}
+          {step === 7 && state.calcType === "manual" && (
+            <StepResultManual
+              state={state}
+              ingredientsList={ingredientsList}
+              initialPercent={manualSeed}
+            />
+          )}
+          {step === 7 && state.calcType !== "manual" && (
+            <StepResult
+              state={state}
+              ingredientsList={ingredientsList}
+              onSwitchToManual={(seed) => {
+                setManualSeed(seed);
+                setState((s) => ({ ...s, calcType: "manual" }));
+              }}
+            />
+          )}
           </div>
         </Card>
 
