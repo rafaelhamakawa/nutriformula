@@ -1436,7 +1436,15 @@ function Row({ label, value }: { label: string; value: string }) {
 
 // ---------- Ajuste manual ----------
 
-function StepResultManual({ state, ingredientsList }: { state: WizardState; ingredientsList: IngredientRow[] }) {
+function StepResultManual({
+  state,
+  ingredientsList,
+  initialPercent,
+}: {
+  state: WizardState;
+  ingredientsList: IngredientRow[];
+  initialPercent?: Record<string, number> | null;
+}) {
   // Resolve dados de cada ingrediente selecionado
   const ingredientesData = useMemo(() => {
     const selMap = new Map(ingredientsList.map((i) => [i.nome.toLowerCase(), i]));
@@ -1450,22 +1458,27 @@ function StepResultManual({ state, ingredientsList }: { state: WizardState; ingr
     });
   }, [ingredientsList, state.ingredients]);
 
-  // Percentual por ingrediente (inicializa distribuído igualmente)
+  // Percentual por ingrediente — seed externa quando fornecida
   const [percent, setPercent] = useState<Record<string, number>>({});
+  const seedKey = initialPercent ? JSON.stringify(initialPercent) : "";
   useEffect(() => {
     setPercent((prev) => {
       const keys = state.ingredients;
       if (keys.length === 0) return {};
-      const allPresent = keys.every((k) => k in prev);
-      if (allPresent && Object.keys(prev).length === keys.length) return prev;
-      const eq = 100 / keys.length;
       const next: Record<string, number> = {};
-      keys.forEach((k, i) => {
-        next[k] = i === keys.length - 1 ? 100 - eq * (keys.length - 1) : eq;
+      keys.forEach((k) => {
+        if (initialPercent && k in initialPercent) {
+          next[k] = initialPercent[k];
+        } else if (k in prev) {
+          next[k] = prev[k];
+        } else {
+          next[k] = 0;
+        }
       });
       return next;
     });
-  }, [state.ingredients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ingredients, seedKey]);
 
   const updatePercent = (nome: string, novo: number) => {
     setPercent((prev) => ({ ...prev, [nome]: Number.isFinite(novo) ? novo : 0 }));
