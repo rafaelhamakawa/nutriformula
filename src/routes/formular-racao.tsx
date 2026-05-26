@@ -1543,7 +1543,7 @@ function StepResultManual({
         <div className="space-y-5">
           <div className="bg-card/40 border border-border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Ingredientes</h3>
+              <h3 className="font-semibold">Cálculo parcial da ração</h3>
               <span
                 className={`text-xs px-2 py-1 rounded-md border ${
                   Math.abs(total - 100) < 0.05
@@ -1554,52 +1554,115 @@ function StepResultManual({
                 Total: {total.toFixed(2)}%
               </span>
             </div>
-            <div className="space-y-4">
-              {ingredientesData.map((ing) => {
-                const v = percent[ing.nome] ?? 0;
-                const lim = state.ingredientLimits[ing.nome] ?? { min: "", max: "" };
-                return (
-                  <div key={ing.nome} className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm">
-                        <div className="font-medium">{ing.nome}</div>
-                        <div className="text-xs text-muted-foreground">
-                          R$ {ing.preco.toFixed(4)}/kg
-                          {(lim.min || lim.max) && (
-                            <>
-                              {" "}· limites {lim.min || 0}–{lim.max || 100}%
-                            </>
+            <p className="text-xs text-muted-foreground mb-3">
+              Ajuste a coluna <strong>%</strong> de cada ingrediente. As demais colunas mostram a contribuição
+              (valor do nutriente × % / 100) que cada ingrediente aporta à fórmula.
+            </p>
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full text-xs tabular-nums">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="sticky left-0 z-10 bg-muted/40 text-left px-2 py-2 font-medium min-w-[160px]">
+                      Ingrediente
+                    </th>
+                    <th className="px-2 py-2 font-medium text-right w-24">%</th>
+                    {state.nutrients.map((key) => {
+                      const col = NUTRIENT_COLUMNS.find((c) => c.key === key);
+                      return (
+                        <th key={key} className="px-2 py-2 font-medium text-right whitespace-nowrap">
+                          {col?.label ?? key}
+                          {col?.unit && (
+                            <div className="text-[10px] opacity-70">({col.unit})</div>
                           )}
-                        </div>
-                      </div>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={v.toFixed(2)}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(",", ".");
-                          const n = parseFloat(raw);
-                          updatePercent(ing.nome, Number.isFinite(n) ? n : 0);
-                        }}
-                        className="w-24 text-right"
-                      />
-                    </div>
-                    <Slider
-                      value={[Math.min(100, Math.max(0, v))]}
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      onValueChange={(arr) => updatePercent(ing.nome, arr[0] ?? 0)}
-                    />
-                  </div>
-                );
-              })}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ingredientesData.map((ing, idx) => {
+                    const v = percent[ing.nome] ?? 0;
+                    return (
+                      <tr
+                        key={ing.nome}
+                        className={idx % 2 === 0 ? "bg-card/30" : "bg-transparent"}
+                      >
+                        <td className="sticky left-0 z-10 bg-inherit px-2 py-1 text-left font-medium">
+                          {ing.nome}
+                        </td>
+                        <td className="px-1 py-1 text-right">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={
+                              Number.isInteger(v) ? v.toString() : v.toFixed(3).replace(/\.?0+$/, "")
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(",", ".");
+                              const n = parseFloat(raw);
+                              updatePercent(ing.nome, Number.isFinite(n) ? n : 0);
+                            }}
+                            className="h-7 w-20 px-1 text-right text-xs"
+                          />
+                        </td>
+                        {state.nutrients.map((key) => {
+                          const val = Number(ing.nutrientes?.[key]) || 0;
+                          const contrib = (val * v) / 100;
+                          return (
+                            <td
+                              key={key}
+                              className={`px-2 py-1 text-right ${
+                                contrib === 0 ? "text-muted-foreground/60" : ""
+                              }`}
+                            >
+                              {contrib.toFixed(3)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-primary/10 font-semibold">
+                  <tr>
+                    <td className="sticky left-0 z-10 bg-primary/10 px-2 py-2 text-left">SOMA</td>
+                    <td
+                      className={`px-2 py-2 text-right ${
+                        Math.abs(total - 100) < 0.05
+                          ? "text-emerald-600"
+                          : "text-yellow-700"
+                      }`}
+                    >
+                      {total.toFixed(2)}
+                    </td>
+                    {state.nutrients.map((key) => {
+                      const soma = ingredientesData.reduce((acc, ing) => {
+                        const pct = percent[ing.nome] ?? 0;
+                        const val = Number(ing.nutrientes?.[key]) || 0;
+                        return acc + (val * pct) / 100;
+                      }, 0);
+                      const r = state.nutrientLimits[key] ?? { min: "", max: "" };
+                      const min = r.min !== "" ? Number(r.min) : undefined;
+                      const max = r.max !== "" ? Number(r.max) : undefined;
+                      let cls = "";
+                      if (typeof min === "number" && soma < min) cls = "bg-destructive/30 text-destructive";
+                      else if (typeof max === "number" && soma > max) cls = "bg-destructive/30 text-destructive";
+                      return (
+                        <td key={key} className={`px-2 py-2 text-right ${cls}`}>
+                          {soma.toFixed(3)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              </table>
             </div>
             <div className="border-t border-border mt-4 pt-3 flex justify-between text-sm font-semibold">
               <span>Custo final</span>
               <span>R$ {custo.toFixed(4)} / kg</span>
             </div>
           </div>
+
 
           <div className="bg-card/40 border border-border rounded-lg p-4">
             <h3 className="font-semibold mb-3">Composição nutricional</h3>
