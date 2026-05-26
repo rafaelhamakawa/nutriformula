@@ -1134,8 +1134,17 @@ function StepCalcType({
 }
 
 // ---- REFORMULADO: StepResult com mapeamento correto de chaves ----
-function StepResult({ state, ingredientsList }: { state: WizardState; ingredientsList: IngredientRow[] }) {
+function StepResult({
+  state,
+  ingredientsList,
+  onSwitchToManual,
+}: {
+  state: WizardState;
+  ingredientsList: IngredientRow[];
+  onSwitchToManual: (seed: Record<string, number>) => void;
+}) {
   const [resultado, setResultado] = useState<ResultadoFormulacao | null>(null);
+  const [relaxado, setRelaxado] = useState<ResultadoFormulacao | null>(null);
   const [calculando, setCalculando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
